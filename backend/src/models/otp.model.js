@@ -18,9 +18,10 @@ const generateOtp = () => {
  * Return a MySQL-compatible datetime N minutes from now (UTC+3 aware).
  */
 const getExpiresAt = (minutes = 10) => {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() + minutes);
-  return d.toISOString().slice(0, 19).replace('T', ' ');
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + minutes);
+    d.setHours(d.getHours() + 3); // ← add EAT offset (UTC+3)
+    return d.toISOString().slice(0, 19).replace('T', ' ');
 };
 
 /**
