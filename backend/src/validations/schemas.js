@@ -100,3 +100,144 @@ module.exports = {
   // users
   createUser, updateUser,
 };
+
+// ── Clients ───────────────────────────────────────────────────────────────────
+const createClient = {
+  body: Joi.object().keys({
+    name:               Joi.string().required(),
+    contact_person:     Joi.string().required(),
+    email:              Joi.string().email().optional().allow('', null),
+    phone:              Joi.string().required(),
+    address:            Joi.string().optional().allow('', null),
+    region:             Joi.string().required(),
+    contract_number:    Joi.string().optional().allow('', null),
+    service_type:       Joi.string().required(),
+    guards_required:    Joi.number().integer().min(1).required(),
+    contract_start:     Joi.string().required(),
+    contract_end:       Joi.string().optional().allow('', null),
+    emergency_name:     Joi.string().optional().allow('', null),
+    emergency_phone:    Joi.string().optional().allow('', null),
+    emergency_relation: Joi.string().optional().allow('', null),
+    status:             Joi.string().valid('active','inactive','pending','expired').optional(),
+    notes:              Joi.string().optional().allow('', null),
+  }),
+};
+
+const updateClient = {
+  params: Joi.object().keys({ clientId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    name:               Joi.string().optional(),
+    contact_person:     Joi.string().optional(),
+    email:              Joi.string().email().optional().allow('', null),
+    phone:              Joi.string().optional(),
+    address:            Joi.string().optional().allow('', null),
+    region:             Joi.string().optional(),
+    contract_number:    Joi.string().optional().allow('', null),
+    service_type:       Joi.string().optional(),
+    guards_required:    Joi.number().integer().min(1).optional(),
+    contract_start:     Joi.string().optional(),
+    contract_end:       Joi.string().optional().allow('', null),
+    emergency_name:     Joi.string().optional().allow('', null),
+    emergency_phone:    Joi.string().optional().allow('', null),
+    emergency_relation: Joi.string().optional().allow('', null),
+    status:             Joi.string().valid('active','inactive','pending','expired').optional(),
+    notes:              Joi.string().optional().allow('', null),
+  }).min(1),
+};
+
+// ── Post Sites ────────────────────────────────────────────────────────────────
+const createPostSite = {
+  body: Joi.object().keys({
+    client_id:       Joi.number().integer().required(),
+    name:            Joi.string().required(),
+    location:        Joi.string().required(),
+    guards_required: Joi.number().integer().min(1).required(),
+    shift_details:   Joi.string().optional().allow('', null),
+    supervisor_name: Joi.string().optional().allow('', null),
+    risk_level:      Joi.string().valid('low','medium','high').optional(),
+    instructions:    Joi.string().optional().allow('', null),
+    status:          Joi.string().valid('active','inactive').optional(),
+  }),
+};
+
+const updatePostSite = {
+  params: Joi.object().keys({ siteId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    client_id:       Joi.number().integer().optional(),
+    name:            Joi.string().optional(),
+    location:        Joi.string().optional(),
+    guards_required: Joi.number().integer().min(1).optional(),
+    shift_details:   Joi.string().optional().allow('', null),
+    supervisor_name: Joi.string().optional().allow('', null),
+    risk_level:      Joi.string().valid('low','medium','high').optional(),
+    instructions:    Joi.string().optional().allow('', null),
+    status:          Joi.string().valid('active','inactive').optional(),
+  }).min(1),
+};
+
+// ── Security Guards ───────────────────────────────────────────────────────────
+const createGuard = {
+  body: Joi.object().keys({
+    full_name:            Joi.string().required(),
+    phone:                Joi.string().required(),
+    email:                Joi.string().email().optional().allow('', null),
+    national_id:          Joi.string().required(),
+    address:              Joi.string().optional().allow('', null),
+    gender:               Joi.string().valid('male','female').optional(),
+    date_of_birth:        Joi.string().optional().allow('', null),
+    next_of_kin_name:     Joi.string().optional().allow('', null),
+    next_of_kin_phone:    Joi.string().optional().allow('', null),
+    next_of_kin_relation: Joi.string().optional().allow('', null),
+    emergency_contact:    Joi.string().optional().allow('', null),
+    employment_date:      Joi.string().optional().allow('', null),
+    guard_status:         Joi.string().valid('active','inactive','suspended','on_leave').optional(),
+    notes:                Joi.string().optional().allow('', null),
+  }),
+};
+
+const updateGuard = {
+  params: Joi.object().keys({ guardId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    full_name:            Joi.string().optional(),
+    phone:                Joi.string().optional(),
+    email:                Joi.string().email().optional().allow('', null),
+    address:              Joi.string().optional().allow('', null),
+    gender:               Joi.string().valid('male','female').optional(),
+    date_of_birth:        Joi.string().optional().allow('', null),
+    next_of_kin_name:     Joi.string().optional().allow('', null),
+    next_of_kin_phone:    Joi.string().optional().allow('', null),
+    next_of_kin_relation: Joi.string().optional().allow('', null),
+    emergency_contact:    Joi.string().optional().allow('', null),
+    employment_date:      Joi.string().optional().allow('', null),
+    guard_status:         Joi.string().valid('active','inactive','suspended','on_leave').optional(),
+    notes:                Joi.string().optional().allow('', null),
+  }).min(1),
+};
+
+// ── Assignments ───────────────────────────────────────────────────────────────
+const createAssignment = {
+  body: Joi.object().keys({
+    guard_id:   Joi.number().integer().required(),
+    client_id:  Joi.number().integer().required(),
+    site_id:    Joi.number().integer().required(),
+    shift:      Joi.string().required(),
+    start_date: Joi.string().required(),
+    end_date:   Joi.string().optional().allow('', null),
+    notes:      Joi.string().optional().allow('', null),
+  }),
+};
+
+const endAssignment = {
+  params: Joi.object().keys({ assignmentId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    notes: Joi.string().optional().allow('', null),
+  }),
+};
+
+// Append new exports to existing module.exports
+Object.assign(module.exports, {
+  createClient, updateClient,
+  createPostSite, updatePostSite,
+  createGuard, updateGuard,
+  createAssignment, endAssignment,
+});
