@@ -73,6 +73,18 @@ if (config.env === 'production') {
 // ── API routes ────────────────────────────────────────────────────────────────
 app.use('/api', routes);
 
+// ── Serve uploaded files ─────────────────────────────────────────────────────
+const uploadsPath = require('path').join(process.cwd(), 'uploads');
+const fsSync = require('fs');
+if (!fsSync.existsSync(uploadsPath)) fsSync.mkdirSync(uploadsPath, { recursive: true });
+app.use('/uploads', require('express').static(uploadsPath, {
+  maxAge: '7d',
+  etag: true,
+  setHeaders: (res) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  },
+}));
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) =>
   res.json({ status: 'ok', system: 'Ura Security', env: config.env, ts: new Date().toISOString() })

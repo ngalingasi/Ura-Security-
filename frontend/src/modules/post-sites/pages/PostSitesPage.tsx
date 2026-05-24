@@ -29,7 +29,7 @@ export default function PostSitesPage() {
   const [page,    setPage]    = useState(1);
   const [search,  setSearch]  = useState('');
   const [clientFilter, setClientFilter] = useState('');
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined as any);
 
   const [modal,    setModal]    = useState(false);
   const [editItem, setEditItem] = useState<PostSite | null>(null);
@@ -95,7 +95,7 @@ export default function PostSitesPage() {
     if (!validate()) return;
     setSaving(true); setApiError('');
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         ...form,
         client_id: Number(form.client_id),
         guards_required: Number(form.guards_required),

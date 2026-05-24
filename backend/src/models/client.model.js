@@ -3,6 +3,14 @@ const { query }           = require('../database/db');
 const ApiError            = require('../utils/ApiError');
 const { buildPagination } = require('../utils/helpers');
 
+const toDateOnly = (v) => {
+  if (!v) return null;
+  if (typeof v === 'string' && v.includes('T')) return v.slice(0, 10);
+  return v || null;
+};
+
+
+
 const SAFE_FIELDS =
   `c.client_id, c.name, c.contact_person, c.email, c.phone,
    c.address, c.region, c.contract_number, c.service_type,
@@ -81,7 +89,7 @@ const create = async (body, creatorId = null) => {
     [
       name, contact_person, email || null, phone, address || null, region,
       contract_number || null, service_type, Number(guards_required),
-      contract_start, contract_end || null,
+      toDateOnly(contract_start), toDateOnly(contract_end),
       emergency_name || null, emergency_phone || null, emergency_relation || null,
       status, notes || null, creatorId,
     ]
@@ -101,7 +109,8 @@ const update = async (id, body) => {
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
 
   const set    = fields.map((f) => `${f} = ?`).join(', ');
-  const values = fields.map((f) => body[f] ?? null);
+  const CLIENT_DATE_FIELDS = new Set(['contract_start', 'contract_end']);
+  const values = fields.map((f) => CLIENT_DATE_FIELDS.has(f) ? toDateOnly(body[f]) : (body[f] ?? null));
   await query(`UPDATE clients SET ${set} WHERE client_id = ?`, [...values, id]);
   return findById(id);
 };

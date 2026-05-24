@@ -3,9 +3,10 @@ import DataTable, { type Column } from '../../../components/tables/DataTable';
 import PageHeader from '../../../components/ui/PageHeader';
 import StatusBadge from '../../../components/ui/StatusBadge';
 import Modal from '../../../components/ui/Modal';
+import UserAvatar from '../../../components/ui/UserAvatar';
 import { FormInput, FormTextarea, FormSelect, FormSection } from '../../../components/forms/FormField';
 import { assignmentsApi, type Assignment } from '../api/assignments.api';
-import { guardsApi, type SecurityGuard } from '../../security-guards/api/guards.api';
+import { guardsApi, resolvePhotoUrl, type SecurityGuard } from '../../security-guards/api/guards.api';
 import { clientsApi, type Client } from '../../clients/api/clients.api';
 import { postSitesApi, type PostSite } from '../../post-sites/api/post-sites.api';
 import { getErrorMessage } from '../../../api/client';
@@ -15,6 +16,14 @@ const SHIFT_OPTS = [
   { value:'Night Shift (18:00–06:00)', label:'Night Shift (18:00–06:00)' },
   { value:'24 Hours',                  label:'24 Hours' },
 ];
+
+
+/** Ensure a date value is plain YYYY-MM-DD for <input type="date"> */
+const toDateInput = (v: string | null | undefined): string => {
+  if (!v) return '';
+  if (v.includes('T')) return v.slice(0, 10);
+  return v;
+};
 
 const EMPTY = { guard_id:'', client_id:'', site_id:'', shift:'', start_date:'', end_date:'', notes:'' };
 
@@ -28,7 +37,7 @@ export default function AssignPostSitePage() {
   const [page,        setPage]        = useState(1);
   const [search,      setSearch]      = useState('');
   const [statusF,     setStatusF]     = useState('');
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined as any);
 
   const [modal,    setModal]    = useState(false);
   const [form,     setForm]     = useState({ ...EMPTY });
@@ -113,12 +122,19 @@ export default function AssignPostSitePage() {
     }
   };
 
-  const guardOpts  = guards.map(g => ({ value: String(g.guard_id), label: `${g.full_name} (${g.phone})` }));
+  const guardOpts  = guards.map(g => ({ value: String(g.guard_id), label: g.employee_id ? `${g.full_name} · ${g.employee_id}` : `${g.full_name} (${g.phone})` }));
   const clientOpts = clients.map(c => ({ value: String(c.client_id), label: c.name }));
   const siteOpts   = sites.map(s => ({ value: String(s.site_id), label: s.name }));
 
   const columns: Column<Assignment>[] = [
-    { key: 'guard_name',  header: 'Guard',     render: r => <span className="font-medium text-gray-800 dark:text-white">{r.guard_name}</span> },
+    { key: 'guard_name',  header: 'Guard',
+      render: r => (
+        <div className="flex items-center gap-2">
+          <UserAvatar fullName={r.guard_name} role="guard" size="xs" />
+          <span className="font-medium text-gray-800 dark:text-white">{r.guard_name}</span>
+        </div>
+      )
+    },
     { key: 'client_name', header: 'Client',    className: 'hidden md:table-cell' },
     { key: 'site_name',   header: 'Post Site' },
     { key: 'shift',       header: 'Shift',     className: 'hidden lg:table-cell text-xs' },

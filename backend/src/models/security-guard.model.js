@@ -3,8 +3,17 @@ const { query }           = require('../database/db');
 const ApiError            = require('../utils/ApiError');
 const { buildPagination } = require('../utils/helpers');
 
+/** Strip ISO datetime to plain YYYY-MM-DD, return null for empty values */
+const toDateOnly = (v) => {
+  if (!v) return null;
+  if (typeof v === 'string' && v.includes('T')) return v.slice(0, 10);
+  return v || null;
+};
+
+
+
 const SAFE_FIELDS =
-  `sg.guard_id, sg.full_name, sg.phone, sg.email, sg.national_id,
+  `sg.guard_id, sg.employee_id, sg.full_name, sg.phone, sg.email, sg.national_id,
    sg.address, sg.gender, sg.date_of_birth,
    sg.next_of_kin_name, sg.next_of_kin_phone, sg.next_of_kin_relation,
    sg.emergency_contact, sg.employment_date,
@@ -76,7 +85,7 @@ const findById = async (id) => {
 
 const create = async (body, creatorId = null) => {
   const {
-    full_name, phone, email = null, national_id, address = null,
+    full_name, employee_id = null, phone, email = null, national_id, address = null,
     gender = 'male', date_of_birth = null,
     next_of_kin_name = null, next_of_kin_phone = null, next_of_kin_relation = null,
     emergency_contact = null, employment_date = null,
@@ -93,14 +102,14 @@ const create = async (body, creatorId = null) => {
 
   const result = await query(
     `INSERT INTO security_guards
-       (full_name, phone, email, national_id, address, gender, date_of_birth,
+       (full_name, employee_id, phone, email, national_id, address, gender, date_of_birth,
         next_of_kin_name, next_of_kin_phone, next_of_kin_relation,
         emergency_contact, employment_date, photo_url, documents_url,
         guard_status, notes, created_by)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
-      full_name, phone, email || null, national_id, address || null,
-      gender, date_of_birth || null,
+      full_name, employee_id || null, phone, email || null, national_id, address || null,
+      gender, toDateOnly(date_of_birth),
       next_of_kin_name || null, next_of_kin_phone || null, next_of_kin_relation || null,
       emergency_contact || null, employment_date || null,
       photo_url || null, documents_url || null,
@@ -112,7 +121,7 @@ const create = async (body, creatorId = null) => {
 
 const update = async (id, body) => {
   const ALLOWED = [
-    'full_name', 'phone', 'email', 'address', 'gender', 'date_of_birth',
+    'full_name', 'employee_id', 'national_id', 'phone', 'email', 'address', 'gender', 'date_of_birth',
     'next_of_kin_name', 'next_of_kin_phone', 'next_of_kin_relation',
     'emergency_contact', 'employment_date', 'photo_url', 'documents_url',
     'guard_status', 'notes',
@@ -121,7 +130,8 @@ const update = async (id, body) => {
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
 
   const set    = fields.map((f) => `${f} = ?`).join(', ');
-  const values = fields.map((f) => body[f] ?? null);
+  const DATE_FIELDS = new Set(['date_of_birth', 'employment_date']);
+  const values = fields.map((f) => DATE_FIELDS.has(f) ? toDateOnly(body[f]) : (body[f] ?? null));
   await query(`UPDATE security_guards SET ${set} WHERE guard_id = ?`, [...values, id]);
   return findById(id);
 };

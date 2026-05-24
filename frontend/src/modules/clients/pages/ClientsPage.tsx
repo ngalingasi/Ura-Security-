@@ -15,6 +15,13 @@ const WIZARD_STEPS = [
   { label: 'Emergency'     },
 ];
 
+/** Ensure a date value is plain YYYY-MM-DD for <input type="date"> */
+const toDateInput = (v: string | null | undefined): string => {
+  if (!v) return '';
+  if (v.includes('T')) return v.slice(0, 10);
+  return v;
+};
+
 const EMPTY_FORM = {
   name:'', contact_person:'', email:'', phone:'', address:'', region:'',
   contract_number:'', service_type:'', guards_required:'1',
@@ -44,7 +51,7 @@ export default function ClientsPage() {
   const [page,      setPage]      = useState(1);
   const [search,    setSearch]    = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined as any);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem,  setEditItem]  = useState<Client | null>(null);
@@ -94,7 +101,7 @@ export default function ClientsPage() {
       phone: c.phone, address: c.address ?? '', region: c.region,
       contract_number: c.contract_number ?? '', service_type: c.service_type,
       guards_required: String(c.guards_required),
-      contract_start: c.contract_start, contract_end: c.contract_end ?? '',
+      contract_start: toDateInput(c.contract_start), contract_end: toDateInput(c.contract_end),
       emergency_name: c.emergency_name ?? '', emergency_phone: c.emergency_phone ?? '',
       emergency_relation: c.emergency_relation ?? '',
       status: c.status, notes: c.notes ?? '',
@@ -132,7 +139,7 @@ export default function ClientsPage() {
     if (!validate(step)) return;
     setSaving(true); setApiError('');
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         ...form,
         guards_required: Number(form.guards_required),
         email:          form.email          || null,

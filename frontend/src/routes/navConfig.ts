@@ -37,11 +37,6 @@ export const NAV_CONFIG: NavItem[] = [
     iconPath: SidebarIcons.Dashboard,
   },
   {
-    label:    'My Profile',
-    to:       ROUTES.PROFILE,
-    iconPath: SidebarIcons.Profile,
-  },
-  {
     label:    'Users',
     to:       ROUTES.USERS,
     iconPath: SidebarIcons.Users,

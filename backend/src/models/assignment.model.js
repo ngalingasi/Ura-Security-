@@ -1,5 +1,13 @@
 const httpStatus          = require('http-status');
 const { query, transaction, connQuery } = require('../database/db');
+
+const toDateOnly = (v) => {
+  if (!v) return null;
+  if (typeof v === 'string' && v.includes('T')) return v.slice(0, 10);
+  return v || null;
+};
+
+
 const ApiError            = require('../utils/ApiError');
 const { buildPagination } = require('../utils/helpers');
 
@@ -95,7 +103,7 @@ const create = async (body, creatorId = null) => {
       `INSERT INTO guard_assignments
          (guard_id, client_id, site_id, shift, start_date, end_date, notes, status, created_by)
        VALUES (?,?,?,?,?,?,?,'active',?)`,
-      [guard_id, client_id, site_id, shift, start_date, end_date || null, notes || null, creatorId]
+      [guard_id, client_id, site_id, shift, toDateOnly(start_date), toDateOnly(end_date), notes || null, creatorId]
     );
     const assignmentId = result.insertId;
 

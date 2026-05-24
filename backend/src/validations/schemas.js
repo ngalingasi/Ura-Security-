@@ -179,6 +179,7 @@ const updatePostSite = {
 const createGuard = {
   body: Joi.object().keys({
     full_name:            Joi.string().required(),
+    employee_id:          Joi.string().optional().allow('', null),
     phone:                Joi.string().required(),
     email:                Joi.string().email().optional().allow('', null),
     national_id:          Joi.string().required(),
@@ -199,6 +200,8 @@ const updateGuard = {
   params: Joi.object().keys({ guardId: Joi.number().integer().required() }),
   body: Joi.object().keys({
     full_name:            Joi.string().optional(),
+    employee_id:          Joi.string().optional().allow('', null),
+    national_id:          Joi.string().optional().allow('', null),
     phone:                Joi.string().optional(),
     email:                Joi.string().email().optional().allow('', null),
     address:              Joi.string().optional().allow('', null),
@@ -209,6 +212,7 @@ const updateGuard = {
     next_of_kin_relation: Joi.string().optional().allow('', null),
     emergency_contact:    Joi.string().optional().allow('', null),
     employment_date:      Joi.string().optional().allow('', null),
+    photo_url:            Joi.string().optional().allow('', null),
     guard_status:         Joi.string().valid('active','inactive','suspended','on_leave').optional(),
     notes:                Joi.string().optional().allow('', null),
   }).min(1),

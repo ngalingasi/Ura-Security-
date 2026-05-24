@@ -2,6 +2,7 @@ import api, { type PaginatedResult } from '../../../api/client';
 
 export interface SecurityGuard {
   guard_id:              number;
+  employee_id:           string | null;
   full_name:             string;
   phone:                 string;
   email:                 string | null;
@@ -27,9 +28,34 @@ export interface GuardFilters {
   guard_status?: string; gender?: string; search?: string;
 }
 
+/** Resolve a guard photo_url to a full absolute URL */
+export const resolvePhotoUrl = (photo_url: string | null | undefined): string | null => {
+  if (!photo_url) return null;
+  if (photo_url.startsWith('http')) return photo_url;
+  const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api')
+    .replace(/\/api$/, '');
+  return `${base}${photo_url}`;
+};
+
 export const guardsApi = {
-  list:    (params?: GuardFilters)                    => api.get<PaginatedResult<SecurityGuard>>('/v1/security-guards', { params }),
-  getById: (id: number)                               => api.get<SecurityGuard>(`/v1/security-guards/${id}`),
-  create:  (body: Partial<SecurityGuard>)             => api.post<SecurityGuard>('/v1/security-guards', body),
-  update:  (id: number, body: Partial<SecurityGuard>) => api.patch<SecurityGuard>(`/v1/security-guards/${id}`, body),
+  list:    (params?: GuardFilters) =>
+    api.get<PaginatedResult<SecurityGuard>>('/v1/security-guards', { params }),
+
+  getById: (id: number) =>
+    api.get<SecurityGuard>(`/v1/security-guards/${id}`),
+
+  create:  (body: Partial<SecurityGuard>) =>
+    api.post<SecurityGuard>('/v1/security-guards', body),
+
+  update:  (id: number, body: Partial<SecurityGuard>) =>
+    api.patch<SecurityGuard>(`/v1/security-guards/${id}`, body),
+
+  /** Upload profile photo — multipart/form-data */
+  uploadPhoto: (guardId: number, file: File) => {
+    const fd = new FormData();
+    fd.append('photo', file);
+    return api.post<SecurityGuard>(`/v1/security-guards/${guardId}/photo`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
