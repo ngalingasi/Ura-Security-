@@ -5,7 +5,9 @@ import StatusBadge from '../../../components/ui/StatusBadge';
 import Modal from '../../../components/ui/Modal';
 import WizardStepper from '../../../components/forms/WizardStepper';
 import { FormInput, FormTextarea, FormSelect, FormSection } from '../../../components/forms/FormField';
+import DatePicker from '../../../components/forms/DatePicker';
 import { clientsApi, type Client, type ClientMeta } from '../api/clients.api';
+import { formatDate, toDateInput } from '../../../utils/date';
 import { getErrorMessage } from '../../../api/client';
 
 const WIZARD_STEPS = [
@@ -14,13 +16,6 @@ const WIZARD_STEPS = [
   { label: 'Contract'      },
   { label: 'Emergency'     },
 ];
-
-/** Ensure a date value is plain YYYY-MM-DD for <input type="date"> */
-const toDateInput = (v: string | null | undefined): string => {
-  if (!v) return '';
-  if (v.includes('T')) return v.slice(0, 10);
-  return v;
-};
 
 const EMPTY_FORM = {
   name:'', contact_person:'', email:'', phone:'', address:'', region:'',
@@ -246,10 +241,10 @@ export default function ClientsPage() {
         <FormInput label="Number of Guards" required type="number" min="1" value={form.guards_required}
           onChange={e => set('guards_required', e.target.value)} placeholder="e.g. 5" error={errors.guards_required} />
         <div className="grid grid-cols-2 gap-3">
-          <FormInput label="Start Date" required type="date" value={form.contract_start}
-            onChange={e => set('contract_start', e.target.value)} error={errors.contract_start} />
-          <FormInput label="End Date" type="date" value={form.contract_end}
-            onChange={e => set('contract_end', e.target.value)} />
+          <DatePicker label="Start Date" required value={form.contract_start}
+            onChange={v => set('contract_start', v)} error={errors.contract_start} />
+          <DatePicker label="End Date" value={form.contract_end}
+            onChange={v => set('contract_end', v)} />
         </div>
       </FormSection>
     </div>,

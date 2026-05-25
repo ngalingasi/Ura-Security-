@@ -5,10 +5,12 @@ import StatusBadge from '../../../components/ui/StatusBadge';
 import Modal from '../../../components/ui/Modal';
 import UserAvatar from '../../../components/ui/UserAvatar';
 import { FormInput, FormTextarea, FormSelect, FormSection } from '../../../components/forms/FormField';
+import DatePicker from '../../../components/forms/DatePicker';
 import { assignmentsApi, type Assignment } from '../api/assignments.api';
 import { guardsApi, resolvePhotoUrl, type SecurityGuard } from '../../security-guards/api/guards.api';
 import { clientsApi, type Client } from '../../clients/api/clients.api';
 import { postSitesApi, type PostSite } from '../../post-sites/api/post-sites.api';
+import { formatDate, toDateInput } from '../../../utils/date';
 import { getErrorMessage } from '../../../api/client';
 
 const SHIFT_OPTS = [
@@ -18,12 +20,6 @@ const SHIFT_OPTS = [
 ];
 
 
-/** Ensure a date value is plain YYYY-MM-DD for <input type="date"> */
-const toDateInput = (v: string | null | undefined): string => {
-  if (!v) return '';
-  if (v.includes('T')) return v.slice(0, 10);
-  return v;
-};
 
 const EMPTY = { guard_id:'', client_id:'', site_id:'', shift:'', start_date:'', end_date:'', notes:'' };
 
@@ -56,7 +52,7 @@ export default function AssignPostSitePage() {
   useEffect(() => {
     if (!form.client_id) { setSites([]); return; }
     setSitesLoading(true);
-    postSitesApi.list({ client_id: Number(form.client_id), status: 'active', limit: 100 })
+    postSitesApi.list({ client_id: Number(form.client_id), limit: 100 })
       .then(r => setSites(r.data.results))
       .catch(() => setSites([]))
       .finally(() => setSitesLoading(false));
@@ -138,8 +134,8 @@ export default function AssignPostSitePage() {
     { key: 'client_name', header: 'Client',    className: 'hidden md:table-cell' },
     { key: 'site_name',   header: 'Post Site' },
     { key: 'shift',       header: 'Shift',     className: 'hidden lg:table-cell text-xs' },
-    { key: 'start_date',  header: 'Start',     className: 'hidden md:table-cell text-xs' },
-    { key: 'end_date',    header: 'End',       className: 'hidden lg:table-cell text-xs', render: r => <span>{r.end_date || '—'}</span> },
+    { key: 'start_date',  header: 'Start',     className: 'hidden md:table-cell text-xs', render: r => <span>{formatDate(r.start_date)}</span> },
+    { key: 'end_date',    header: 'End',       className: 'hidden lg:table-cell text-xs', render: r => <span>{formatDate(r.end_date)}</span> },
     { key: 'status',      header: 'Status',    render: r => <StatusBadge status={r.status} /> },
     {
       key: '_a', header: '',
@@ -159,7 +155,7 @@ export default function AssignPostSitePage() {
   return (
     <div className="p-6 space-y-5">
       <PageHeader title="Assign Post Site" description={`${total} assignments`}
-        action={<button onClick={() => { setForm({ ...EMPTY }); setErrors({}); setApiError(''); setModal(true); }}
+        action={<button onClick={() => { setForm({ ...EMPTY }); setErrors({}); setApiError(''); setSaving(false); setModal(true); }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-500 text-white rounded-lg hover:bg-brand-600">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
           New Assignment
@@ -233,10 +229,10 @@ export default function AssignPostSitePage() {
           </FormSection>
           <FormSection title="Duration">
             <div className="grid grid-cols-2 gap-3">
-              <FormInput label="Start Date" required type="date" value={form.start_date}
-                onChange={e => set('start_date', e.target.value)} error={errors.start_date} />
-              <FormInput label="End Date" type="date" value={form.end_date}
-                onChange={e => set('end_date', e.target.value)} hint="Leave blank for open-ended" />
+              <DatePicker label="Start Date" required value={form.start_date}
+                onChange={v => set('start_date', v)} error={errors.start_date} />
+              <DatePicker label="End Date" value={form.end_date}
+                onChange={v => set('end_date', v)} hint="Leave blank for open-ended" />
             </div>
           </FormSection>
           <FormTextarea label="Notes" value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Special instructions…" />

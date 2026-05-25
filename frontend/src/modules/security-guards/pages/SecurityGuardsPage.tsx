@@ -5,16 +5,12 @@ import StatusBadge from '../../../components/ui/StatusBadge';
 import Modal from '../../../components/ui/Modal';
 import UserAvatar from '../../../components/ui/UserAvatar';
 import { FormInput, FormTextarea, FormSelect, FormSection } from '../../../components/forms/FormField';
+import DatePicker from '../../../components/forms/DatePicker';
+import NationalIdInput from '../../../components/forms/NationalIdInput';
+import { formatDate, toDateInput } from '../../../utils/date';
 import { guardsApi, resolvePhotoUrl, type SecurityGuard } from '../api/guards.api';
 import { getErrorMessage } from '../../../api/client';
 
-
-/** Ensure a date value is plain YYYY-MM-DD for <input type="date"> */
-const toDateInput = (v: string | null | undefined): string => {
-  if (!v) return '';
-  if (v.includes('T')) return v.slice(0, 10);
-  return v;
-};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STATUS_OPTS = [
@@ -276,9 +272,11 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: GuardF
           <FormInput label="Employee ID" value={form.employee_id}
             onChange={e => set('employee_id', e.target.value)}
             placeholder="e.g. EMP-2024-001" hint="Unique badge / payroll number" />
-          <FormInput label="National ID" required value={form.national_id}
-            onChange={e => set('national_id', e.target.value)}
-            placeholder="XXXXXXXXXX-XXXXX-XXXXX-X" error={errors.national_id} />
+          <NationalIdInput
+            required
+            value={form.national_id}
+            onChange={v => set('national_id', v)}
+            error={errors.national_id} />
         </div>
         <FormInput label="Full Name" required value={form.full_name}
           onChange={e => set('full_name', e.target.value)}
@@ -295,11 +293,11 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: GuardF
           <FormSelect label="Gender"
             options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]}
             value={form.gender} onChange={e => set('gender', e.target.value)} />
-          <FormInput label="Date of Birth" type="date" value={form.date_of_birth}
-            onChange={e => set('date_of_birth', e.target.value)} />
+          <DatePicker label="Date of Birth" value={form.date_of_birth}
+            onChange={v => set('date_of_birth', v)} />
         </div>
-        <FormInput label="Employment Date" type="date" value={form.employment_date}
-          onChange={e => set('employment_date', e.target.value)} />
+        <DatePicker label="Employment Date" value={form.employment_date}
+          onChange={v => set('employment_date', v)} />
         <FormTextarea label="Address" value={form.address}
           onChange={e => set('address', e.target.value)}
           rows={2} placeholder="Residential address" />
@@ -381,9 +379,9 @@ const GuardProfile = memo(function GuardProfile({
           ['National ID',      guard.national_id],
           ['Email',            guard.email || '—'],
           ['Gender',           guard.gender],
-          ['Date of Birth',    guard.date_of_birth || '—'],
+          ['Date of Birth',    formatDate(guard.date_of_birth)],
           ['Address',          guard.address || '—'],
-          ['Employment Date',  guard.employment_date || '—'],
+          ['Employment Date',  formatDate(guard.employment_date)],
           ['Next of Kin',      guard.next_of_kin_name
             ? `${guard.next_of_kin_name}${guard.next_of_kin_relation ? ` (${guard.next_of_kin_relation})` : ''}`
             : '—'],
@@ -535,6 +533,7 @@ export default function SecurityGuardsPage() {
       key: 'employment_date',
       header: 'Employed',
       className: 'hidden md:table-cell text-xs text-gray-500 dark:text-gray-400',
+      render: r => <span>{formatDate(r.employment_date)}</span>,
     },
     {
       key: 'guard_status',

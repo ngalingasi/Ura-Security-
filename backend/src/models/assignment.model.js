@@ -35,9 +35,9 @@ const findAll = async ({ page, limit, guard_id, client_id, site_id, status, sear
   }
 
   const BASE_JOINS = `FROM guard_assignments ga
-    JOIN security_guards sg ON sg.guard_id = ga.guard_id
-    JOIN clients c          ON c.client_id = ga.client_id
-    JOIN post_sites ps      ON ps.site_id  = ga.site_id`;
+    LEFT JOIN security_guards sg ON sg.guard_id = ga.guard_id
+    LEFT JOIN clients c          ON c.client_id = ga.client_id
+    LEFT JOIN post_sites ps      ON ps.site_id  = ga.site_id`;
 
   const [countRow] = await query(
     `SELECT COUNT(*) AS total ${BASE_JOINS} WHERE ${where}`,
@@ -55,9 +55,9 @@ const findById = async (id) => {
   const rows = await query(
     `SELECT ${SAFE_FIELDS}
      FROM guard_assignments ga
-     JOIN security_guards sg ON sg.guard_id = ga.guard_id
-     JOIN clients c          ON c.client_id = ga.client_id
-     JOIN post_sites ps      ON ps.site_id  = ga.site_id
+     LEFT JOIN security_guards sg ON sg.guard_id = ga.guard_id
+     LEFT JOIN clients c          ON c.client_id = ga.client_id
+     LEFT JOIN post_sites ps      ON ps.site_id  = ga.site_id
      WHERE ga.assignment_id = ?`,
     [id]
   );
@@ -98,24 +98,25 @@ const create = async (body, creatorId = null) => {
     throw new ApiError(httpStatus.CONFLICT, 'This guard is already actively assigned to this site');
   }
 
-  return transaction(async (conn) => {
+  // INSERT + audit inside transaction, then fetch AFTER commit
+  // (findById uses pool connection — cannot run inside an uncommitted transaction)
+  let newId;
+  await transaction(async (conn) => {
     const result = await connQuery(conn,
       `INSERT INTO guard_assignments
          (guard_id, client_id, site_id, shift, start_date, end_date, notes, status, created_by)
        VALUES (?,?,?,?,?,?,?,'active',?)`,
       [guard_id, client_id, site_id, shift, toDateOnly(start_date), toDateOnly(end_date), notes || null, creatorId]
     );
-    const assignmentId = result.insertId;
-
-    // Audit entry
+    newId = result.insertId;
     await connQuery(conn,
       `INSERT INTO assignment_history (assignment_id, action, changed_by, notes)
        VALUES (?, 'created', ?, 'Assignment created')`,
-      [assignmentId, creatorId]
+      [newId, creatorId]
     );
-
-    return findById(assignmentId);
   });
+
+  return findById(newId);
 };
 
 const endAssignment = async (id, userId = null, notes = null) => {
@@ -126,7 +127,7 @@ const endAssignment = async (id, userId = null, notes = null) => {
   if (!rows.length) throw new ApiError(httpStatus.NOT_FOUND, 'Assignment not found');
   if (rows[0].status !== 'active') throw new ApiError(httpStatus.BAD_REQUEST, 'Assignment is not active');
 
-  return transaction(async (conn) => {
+  await transaction(async (conn) => {
     await connQuery(conn,
       `UPDATE guard_assignments
        SET status = 'completed', end_date = CURDATE(), updated_at = NOW()
@@ -138,12 +139,12 @@ const endAssignment = async (id, userId = null, notes = null) => {
        VALUES (?, 'completed', ?, ?)`,
       [id, userId, notes || 'Assignment ended']
     );
-    return findById(id);
   });
+  return findById(id);
 };
 
 const cancelAssignment = async (id, userId = null, notes = null) => {
-  return transaction(async (conn) => {
+  await transaction(async (conn) => {
     await connQuery(conn,
       `UPDATE guard_assignments SET status = 'cancelled', updated_at = NOW() WHERE assignment_id = ?`,
       [id]
@@ -153,8 +154,8 @@ const cancelAssignment = async (id, userId = null, notes = null) => {
        VALUES (?, 'cancelled', ?, ?)`,
       [id, userId, notes || 'Assignment cancelled']
     );
-    return findById(id);
   });
+  return findById(id);
 };
 
 module.exports = { findAll, findById, create, endAssignment, cancelAssignment, checkDuplicate };
