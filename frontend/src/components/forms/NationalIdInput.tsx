@@ -1,10 +1,10 @@
 import { useRef, useEffect } from 'react';
 
-// Tanzania NIN real format: XXXXXXXX-XXXXX-XXXXX-X
-// Groups: 8 digits (DOB yyyymmdd) - 5 digits - 5 digits - 1 digit = 19 total
-const GROUPS  = [8, 5, 5, 1];
-const TOTAL   = GROUPS.reduce((s, n) => s + n, 0); // 19
-const MAX_LEN = TOTAL + GROUPS.length - 1;          // 19 + 3 dashes = 22
+// Tanzania NIN real format: XXXXXXXX-XXXXX-XXXXX-XX
+// Groups: 8 digits (DOB yyyymmdd) - 5 digits - 5 digits - 2 digits = 20 total
+const GROUPS  = [8, 5, 5, 2];
+const TOTAL   = GROUPS.reduce((s, n) => s + n, 0); // 20
+const MAX_LEN = TOTAL + GROUPS.length - 1;          // 20 + 3 dashes = 23
 
 const onlyDigits = (v: string) => v.replace(/\D/g, '');
 
@@ -118,7 +118,7 @@ export default function NationalIdInput({
   const valid  = filled === TOTAL;
 
   // Build placeholder with actual group sizes visible
-  const placeholder = 'XXXXXXXX-XXXXX-XXXXX-X';
+  const placeholder = 'XXXXXXXX-XXXXX-XXXXX-XX';
 
   return (
     <div>
