@@ -1,6 +1,11 @@
 import { Navigate, Outlet } from 'react-router';
 import { useAuth } from '../../store/authStore';
 
+// In production, unauthenticated users are sent to the ERP portal.
+// In development, they see the local /signin page as normal.
+const IS_PROD    = import.meta.env.VITE_IS_PRODUCTION === 'true';
+const ERP_PORTAL = 'https://erp.tpfcs.co.tz';
+
 interface Props {
   allowedRoles?: string[];
 }
@@ -16,7 +21,15 @@ export default function ProtectedRoute({ allowedRoles }: Props) {
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  if (!isAuthenticated) {
+    if (IS_PROD) {
+      // Production — no local login page, send to ERP portal
+      window.location.href = ERP_PORTAL;
+      return null;
+    }
+    // Development — show local login page
+    return <Navigate to="/signin" replace />;
+  }
 
   // Force password change before anything else
   if (user?.must_change_password && window.location.pathname !== '/change-password') {
