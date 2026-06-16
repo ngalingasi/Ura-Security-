@@ -1,5 +1,6 @@
 const httpStatus       = require('http-status');
 const bcrypt           = require('bcryptjs');
+const argon2           = require('argon2');
 const { query }        = require('../database/db');
 const ApiError         = require('../utils/ApiError');
 const { buildPagination } = require('../utils/helpers');
@@ -140,8 +141,22 @@ const updatePassword = async (userId, newPassword) => {
   );
 };
 
-const verifyPassword = async (plaintext, hash) =>
-  bcrypt.compare(plaintext, hash);
+// ── Password verification — auto-detects hash algorithm ──────────────────────
+// Supports bcrypt ($2a$, $2b$, $2y$) and argon2 ($argon2id$, $argon2i$, $argon2d$).
+// Allows users migrated from Management System (argon2) to login without
+// being forced to change their password.
+const verifyPassword = async (plaintext, hash) => {
+  if (!hash || !plaintext) return false;
+  try {
+    if (hash.startsWith('$argon2')) {
+      return await argon2.verify(hash, plaintext);
+    }
+    // bcrypt ($2a$, $2b$, $2y$)
+    return await bcrypt.compare(plaintext, hash);
+  } catch {
+    return false;
+  }
+};
 
 module.exports = {
   findByLogin, findById, findAll, getAllSkills,

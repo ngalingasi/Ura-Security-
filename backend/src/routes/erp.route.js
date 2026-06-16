@@ -1,10 +1,13 @@
-const express   = require('express');
-const router    = express.Router();
-const erpSecret = require('../middlewares/erpSecret');
-const ctrl      = require('../controllers/erp.controller');
+const express    = require('express');
+const router     = express.Router();
+const { lookupUser, health, getLogs, getMe } = require('../controllers/erp.controller');
+const erpSecret  = require('../middlewares/erpSecret');
 
-// All routes in this file are protected by ERP secret
 router.use(erpSecret);
-router.post('/lookup-user', ctrl.lookupUser);
+
+router.post('/lookup-user',      lookupUser);
+router.post('/me',               getMe);
+router.get('/health',            health);
+router.get('/integration-logs',  getLogs);
 
 module.exports = router;
