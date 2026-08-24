@@ -12,24 +12,21 @@ const getLabourerAttendance = async(req,res)=>{
 
     try {
 
+        // Empty list = valid response (nobody clocked in that day yet),
+        // not an error — a 404 here used to make the page show a scary
+        // error banner instead of a normal "no records" empty state.
         let filter = {fromDate:attendance_date, toDate:attendance_date, person_type};
         const response = await fetchLabourerAttendance(filter);
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No attendance records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 
@@ -47,19 +44,13 @@ const getLabourerAttendanceByDateRange = async (req, res) => {
     const filter = { fromDate, toDate, person_type };
     const response = await fetchAttendanceByDateRange(filter);
 
-    if (response && Object.keys(response).length > 0) {
-      return res.status(200).json({
-        status: true,
-        message: "Fetched successfully",
-        data: response,
-      });
-    } else {
-      return res.status(404).json({
-        status: false,
-        message: "No attendance records found",
-        data: [],
-      });
-    }
+    // Empty object = valid response (nobody clocked in during this
+    // range), not an error — see getLabourerAttendance comment.
+    return res.status(200).json({
+      status: true,
+      message: "Fetched successfully",
+      data: response || {},
+    });
   } catch (error) {
     return res.status(500).json({
       status: false,

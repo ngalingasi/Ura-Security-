@@ -14,23 +14,20 @@ const moment = require('moment');
 
 const getSalaryScale = async(req,res)=>{
     try {
+        // Empty list = valid response (no scales created yet), not an
+        // error — a 404 here would break a fresh install's "Assign
+        // Salary" scale dropdown.
         const response = await fetchSalaryScales({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No Scale records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 
@@ -111,23 +108,18 @@ const postEditSalary = async(req,res)=>{
 
 const getEmployeeSalaryScale = async(req,res)=>{
     try {
+        // Empty list = valid response, not an error — see getSalaryScale comment.
         const response = await fetchEmployeeSalaryScales({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No Scale records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 
@@ -158,18 +150,13 @@ const postEmployeeSalaryScale = async(req,res)=>{
 
 const getEmployeeSalaryList = async(req,res)=>{
     try {
+        // Empty list = valid response, not an error — see getSalaryScale comment.
         const response = await fetchEmployeeSalaryList({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No Scale records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
@@ -244,23 +231,18 @@ const generatePayroll = async (req,res)=>{
 
 const getGeneratedPayrolls = async (req,res)=>{
     try {
+        // Empty list = valid response (no payroll generated yet), not an error.
         const response = await fetchGeneratedPayrolls({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No Scale records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 

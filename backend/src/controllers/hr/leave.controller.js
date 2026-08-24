@@ -12,23 +12,18 @@ const {
 
 const getLeavesTypes = async(req,res)=>{
     try {
+        // Empty list = valid response (no leave types created yet), not an error.
         const response = await fetchLeaveTypes({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No designation records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 
@@ -119,21 +114,15 @@ const getLeaveApplications = async(req,res)=>{
             guard_id: guard_id || undefined,
         });
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No designation records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 

@@ -24,17 +24,22 @@ export interface EmploymentMasters {
 
 export const employmentApi = {
   getMasters: async (): Promise<EmploymentMasters> => {
-    const [dep, des, tit, bank] = await Promise.all([
+    // Promise.allSettled — not Promise.all — so that if any ONE of these
+    // four calls fails (network blip, one endpoint erroring), the other
+    // three still populate their dropdowns instead of all four going
+    // blank together.
+    const [dep, des, tit, bank] = await Promise.allSettled([
       client.get('/v1/hr/masters/departments'),
       client.get('/v1/hr/masters/designations'),
       client.get('/v1/hr/masters/titles'),
       client.get('/v1/hr/masters/banks'),
     ]);
+    const dataOf = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' ? (r.value?.data?.data ?? []) : [];
     return {
-      departments:  dep.data?.data  ?? [],
-      designations: des.data?.data ?? [],
-      titles:       tit.data?.data ?? [],
-      banks:        bank.data?.data ?? [],
+      departments:  dataOf(dep),
+      designations: dataOf(des),
+      titles:       dataOf(tit),
+      banks:        dataOf(bank),
     };
   },
 

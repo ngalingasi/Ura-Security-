@@ -51,20 +51,17 @@ const postCreateDepartment = async (req, res) => {
 const getDepartments = async (req, res) => {
 
     try {
+        // An empty list is a valid, successful response (e.g. no
+        // departments created yet) — it must not 404, since that breaks
+        // any caller that fetches multiple master-data lists together
+        // (one empty list would otherwise fail the whole batch).
         const response = await fetchDepartments(req.query);
 
-        if (response.length > 0) {
-            res.status(200).json({
-                status: true,
-                message: `Saved successfully`,
-                data: response
-            });
-        } else {
-            res.status(404).json({
-                status: false,
-                message: 'No budget Added'
-            });
-        }
+        res.status(200).json({
+            status: true,
+            message: 'Fetched successfully',
+            data: response
+        });
 
     } catch (error) {
         res.status(400).json({
@@ -94,23 +91,18 @@ const deleteDepartmentCtrl = async (req, res) => {
 
 const getDesignations = async(req,res)=>{
     try {
+        // Empty list = valid response, not an error — see getDepartments comment.
         const response = await fetchDesignations({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No designation records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 
@@ -154,23 +146,18 @@ const deleteDesignationCtrl = async (req, res) => {
 
 const getTtitles = async(req,res)=>{
     try {
+        // Empty list = valid response, not an error — see getDepartments comment.
         const response = await fetchTitles({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No designation records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 
@@ -214,23 +201,18 @@ const deleteTitleCtrl = async (req, res) => {
 
 const getBanks = async(req,res)=>{
     try {
+        // Empty list = valid response, not an error — see getDepartments comment.
         const response = await fetchBanks({});
 
-        if(response.length > 0){
-            res.status(200).json({
-                status:true,
-                message:'Fetched successfully',
-                data:response})
-        }else{
-            res.status(404).json({
-                status:false,
-                message:'No designation records'})
-        }
+        res.status(200).json({
+            status:true,
+            message:'Fetched successfully',
+            data:response})
 
     } catch (error) {
         res.status(400).json({
             status:false,
-            message:error})
+            message:error.message || error})
     }
 }
 
