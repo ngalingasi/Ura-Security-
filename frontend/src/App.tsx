@@ -21,6 +21,21 @@ const PostSitesPage    = lazy(() => import('./modules/post-sites/pages/PostSites
 const SecurityGuardsPage = lazy(() => import('./modules/security-guards/pages/SecurityGuardsPage'));
 const AssignPostSitePage = lazy(() => import('./modules/assignments/pages/AssignPostSitePage'));
 
+// ── HR (ported from Vibarua/Bandari) ─────────────────────────────────────────
+const HrDepartmentsPage = lazy(() => import('./modules/hr/pages/DepartmentsPage'));
+const HrReferenceDataPage = lazy(() => import('./modules/hr/pages/ReferenceDataPage'));
+const HrAttendanceDaily   = lazy(() => import('./modules/hr/pages/AttendancePage').then(m => ({ default: () => <m.default mode="daily" /> })));
+const HrAttendanceMonthly = lazy(() => import('./modules/hr/pages/AttendancePage').then(m => ({ default: () => <m.default mode="monthly" /> })));
+const HrLeaveTypesPage = lazy(() => import('./modules/hr/pages/LeavesPage').then(m => ({ default: () => <m.default tab="types" /> })));
+const HrLeaveAppsPage  = lazy(() => import('./modules/hr/pages/LeavesPage').then(m => ({ default: () => <m.default tab="applications" /> })));
+
+// ── Payroll (ported from Vibarua/Bandari) ────────────────────────────────────
+const PayrollScalesPage = lazy(() => import('./modules/payroll/pages/PayrollPage').then(m => ({ default: () => <m.default tab="scales" /> })));
+const PayrollAssignPage = lazy(() => import('./modules/payroll/pages/PayrollPage').then(m => ({ default: () => <m.default tab="assign" /> })));
+const PayrollListPage   = lazy(() => import('./modules/payroll/pages/PayrollPage').then(m => ({ default: () => <m.default tab="list" /> })));
+const PayrollSlipsPage  = lazy(() => import('./modules/payroll/pages/PayrollPage').then(m => ({ default: () => <m.default tab="slips" /> })));
+const PayrollReportPage = lazy(() => import('./modules/payroll/pages/PayrollPage').then(m => ({ default: () => <m.default tab="report" /> })));
+
 // ── Simple loading fallback ────────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -79,6 +94,49 @@ export default function App() {
                 <Route path={ROUTES.ASSIGN_POST_SITE} element={
                   <Suspense fallback={<PageLoader />}><AssignPostSitePage /></Suspense>
                 } />
+
+                {/* HR — admin/manager+ */}
+                <Route element={<ProtectedRoute allowedRoles={['admin','manager','super_admin']} />}>
+                  <Route path={ROUTES.HR_ATTENDANCE_DAILY} element={
+                    <Suspense fallback={<PageLoader />}><HrAttendanceDaily /></Suspense>
+                  } />
+                  <Route path={ROUTES.HR_ATTENDANCE_MONTHLY} element={
+                    <Suspense fallback={<PageLoader />}><HrAttendanceMonthly /></Suspense>
+                  } />
+                  <Route path={ROUTES.PAYROLL_SCALES} element={
+                    <Suspense fallback={<PageLoader />}><PayrollScalesPage /></Suspense>
+                  } />
+                  <Route path={ROUTES.PAYROLL_ASSIGN} element={
+                    <Suspense fallback={<PageLoader />}><PayrollAssignPage /></Suspense>
+                  } />
+                  <Route path={ROUTES.PAYROLL_LIST} element={
+                    <Suspense fallback={<PageLoader />}><PayrollListPage /></Suspense>
+                  } />
+                  <Route path={ROUTES.PAYROLL_SLIPS} element={
+                    <Suspense fallback={<PageLoader />}><PayrollSlipsPage /></Suspense>
+                  } />
+                  <Route path={ROUTES.PAYROLL_REPORT} element={
+                    <Suspense fallback={<PageLoader />}><PayrollReportPage /></Suspense>
+                  } />
+                </Route>
+
+                {/* Leaves — everyone can view/apply */}
+                <Route path={ROUTES.HR_LEAVE_TYPES} element={
+                  <Suspense fallback={<PageLoader />}><HrLeaveTypesPage /></Suspense>
+                } />
+                <Route path={ROUTES.HR_LEAVE_APPS} element={
+                  <Suspense fallback={<PageLoader />}><HrLeaveAppsPage /></Suspense>
+                } />
+
+                {/* HR Setup — admin+ */}
+                <Route element={<ProtectedRoute allowedRoles={['admin','super_admin']} />}>
+                  <Route path={ROUTES.HR_DEPARTMENTS} element={
+                    <Suspense fallback={<PageLoader />}><HrDepartmentsPage /></Suspense>
+                  } />
+                  <Route path={ROUTES.HR_REFERENCE_DATA} element={
+                    <Suspense fallback={<PageLoader />}><HrReferenceDataPage /></Suspense>
+                  } />
+                </Route>
               </Route>
             </Route>
 

@@ -10,6 +10,8 @@ import EducationForm from '../../../components/forms/EducationForm';
 import SkillsForm, { SkillLevelBadge } from '../../../components/forms/SkillsForm';
 import { FormInput, FormTextarea, FormSelect, FormSection } from '../../../components/forms/FormField';
 import { guardsApi, resolvePhotoUrl, resolveFileUrl, isImage, type SecurityGuard, type GuardEducation, type GuardSkill } from '../api/guards.api';
+import { employmentApi, type EmploymentProfile } from '../../hr/api/employment.api';
+import { useEmploymentMasters } from '../../hr/hooks/useEmploymentMasters';
 import { getErrorMessage } from '../../../api/client';
 import { formatDate, toDateInput } from '../../../utils/date';
 
@@ -31,6 +33,10 @@ const EMPTY_FORM = {
   gender: 'male', date_of_birth: '', address: '',
   next_of_kin_name: '', next_of_kin_phone: '', next_of_kin_relation: '',
   emergency_contact: '', employment_date: '', guard_status: 'active', notes: '',
+};
+
+const EMPTY_EMPLOYMENT: Partial<EmploymentProfile> = {
+  department_id: '', designation_id: '', title_id: '', bank_id: '', bank_acc: '', joining_date: '',
 };
 
 // ── Photo Upload ──────────────────────────────────────────────────────────────
@@ -99,7 +105,7 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: {
   editItem: SecurityGuard|null; onSaved: (g: SecurityGuard) => void; onClose: () => void;
 }) {
   const isEdit = !!editItem;
-  const [activeTab, setActiveTab] = useState<'personal'|'education'|'skills'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal'|'education'|'skills'|'employment'>('personal');
   const [form, setForm] = useState(() => editItem ? {
     employee_id: editItem.employee_id ?? '', full_name: editItem.full_name,
     phone: editItem.phone, email: editItem.email ?? '', national_id: editItem.national_id,
@@ -113,6 +119,8 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: {
   const [education, setEducation] = useState<GuardEducation[]>(editItem?.education ?? []);
   const [skills,    setSkills]    = useState<GuardSkill[]>(editItem?.skills ?? []);
   const [levels,    setLevels]    = useState<string[]>([]);
+  const [employment, setEmployment] = useState<Partial<EmploymentProfile>>({ ...EMPTY_EMPLOYMENT });
+  const masters = useEmploymentMasters();
   const [pendingPhoto, setPendingPhoto] = useState<File|null>(null);
   const [localGuard, setLocalGuard] = useState<SecurityGuard|null>(editItem);
   const [saving,    setSaving]    = useState(false);
@@ -122,6 +130,19 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: {
   useEffect(() => {
     guardsApi.getEducationLevels().then(r => setLevels(r.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!editItem) return;
+    employmentApi.getProfile({ guard_id: editItem.guard_id })
+      .then(p => { if (p) setEmployment({
+        department_id: p.department_id ?? '', designation_id: p.designation_id ?? '',
+        title_id: p.title_id ?? '', bank_id: p.bank_id ?? '',
+        bank_acc: p.bank_acc ?? '', joining_date: toDateInput(p.joining_date ?? ''),
+      }); })
+      .catch(() => {});
+  }, [editItem]);
+
+  const setEmp = (k: string, v: string) => setEmployment(f => ({ ...f, [k]: v }));
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -167,6 +188,12 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: {
       }
 
       const guardId = saved.guard_id;
+
+      // Save HR employment info (department/designation/title/bank/joining date) —
+      // non-fatal on failure, same pattern as education/skills below.
+      try {
+        await employmentApi.saveProfile({ guard_id: guardId, ...employment });
+      } catch { /* non-fatal */ }
 
       // Save education (upload pending files first)
       const eduRecords = await Promise.all(education.map(async (r) => {
@@ -217,9 +244,10 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: {
   };
 
   const tabs = [
-    { id: 'personal',  label: 'Personal',  count: 0 },
-    { id: 'education', label: 'Education', count: education.length },
-    { id: 'skills',    label: 'Skills',    count: skills.length    },
+    { id: 'personal',   label: 'Personal',   count: 0 },
+    { id: 'employment', label: 'Employment', count: 0 },
+    { id: 'education',  label: 'Education',  count: education.length },
+    { id: 'skills',     label: 'Skills',     count: skills.length    },
   ] as const;
 
   return (
@@ -289,6 +317,30 @@ const GuardForm = memo(function GuardForm({ editItem, onSaved, onClose }: {
           <FormSection title="Status">
             <FormSelect label="Guard Status" options={STATUS_OPTS} value={form.guard_status} onChange={e => set('guard_status', e.target.value)}/>
             <FormTextarea label="Notes" value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Any additional notes…"/>
+          </FormSection>
+        </div>
+      )}
+
+      {/* Employment Tab */}
+      {activeTab === 'employment' && (
+        <div className="space-y-5">
+          <FormSection title="HR / Payroll Information">
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect label="Department" value={String(employment.department_id ?? '')} onChange={e => setEmp('department_id', e.target.value)}
+                options={[{ value: '', label: masters.loading ? 'Loading…' : 'Select department' }, ...masters.departments.map(d => ({ value: String(d.id), label: d.name }))]}/>
+              <FormSelect label="Designation" value={String(employment.designation_id ?? '')} onChange={e => setEmp('designation_id', e.target.value)}
+                options={[{ value: '', label: masters.loading ? 'Loading…' : 'Select designation' }, ...masters.designations.map(d => ({ value: String(d.designation_id), label: d.designation_name }))]}/>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect label="Title" value={String(employment.title_id ?? '')} onChange={e => setEmp('title_id', e.target.value)}
+                options={[{ value: '', label: masters.loading ? 'Loading…' : 'Select title' }, ...masters.titles.map(t => ({ value: String(t.title_id), label: t.title_name }))]}/>
+              <DatePicker label="Joining Date" value={String(employment.joining_date ?? '')} onChange={v => setEmp('joining_date', v)}/>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect label="Bank" value={String(employment.bank_id ?? '')} onChange={e => setEmp('bank_id', e.target.value)}
+                options={[{ value: '', label: masters.loading ? 'Loading…' : 'Select bank' }, ...masters.banks.map(b => ({ value: String(b.bank_id), label: b.bank_name }))]}/>
+              <FormInput label="Bank Account Number" value={String(employment.bank_acc ?? '')} onChange={e => setEmp('bank_acc', e.target.value)} placeholder="Account number"/>
+            </div>
           </FormSection>
         </div>
       )}

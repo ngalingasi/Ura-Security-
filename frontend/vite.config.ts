@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     // Prod: API on same domain at /api
     'import.meta.env.VITE_API_URL': mode === 'production'
       ? JSON.stringify('/api')
-      : JSON.stringify('http://localhost:3001/api'),
+      : JSON.stringify('http://localhost:3000/api'),
   },
   build: {
     outDir: "dist",

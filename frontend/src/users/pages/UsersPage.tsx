@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import client from '../../auth/api/authApi';
 import type { UserRecord, Skill, PaginatedResponse } from '../../types';
 import { useAuth } from '../../store/authStore';
+import { employmentApi, type EmploymentProfile } from '../../modules/hr/api/employment.api';
+import { useEmploymentMasters } from '../../modules/hr/hooks/useEmploymentMasters';
 
 // ── Toast (unchanged — transition-all is fine here, it's not on inputs) ───────
 type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -203,9 +205,25 @@ function UserForm({ user, allSkills, isSuperAdmin: superAdmin, onSaved, onClose 
     status: user?.status ?? 'active', password: '',
   });
   const [selectedSkills, setSelectedSkills] = useState<number[]>(user?.skills?.map(s => s.skill_id) ?? []);
+  const [employment, setEmployment] = useState<Partial<EmploymentProfile>>({
+    department_id: '', designation_id: '', title_id: '', bank_id: '', bank_acc: '', joining_date: '',
+  });
+  const masters = useEmploymentMasters();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const setEmp = (k: string, v: string) => setEmployment(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (!user) return;
+    employmentApi.getProfile({ user_id: user.user_id })
+      .then(p => { if (p) setEmployment({
+        department_id: p.department_id ?? '', designation_id: p.designation_id ?? '',
+        title_id: p.title_id ?? '', bank_id: p.bank_id ?? '',
+        bank_acc: p.bank_acc ?? '', joining_date: p.joining_date ? p.joining_date.slice(0, 10) : '',
+      }); })
+      .catch(() => {});
+  }, [user]);
 
   const availableRoles = superAdmin
     ? [['viewer','Viewer'],['user','User'],['manager','Manager'],['admin','Admin'],['super_admin','Super Admin']]
@@ -226,6 +244,12 @@ function UserForm({ user, allSkills, isSuperAdmin: superAdmin, onSaved, onClose 
         userId = res.data.user_id;
       }
       if (userId) await client.put(`/v1/users/${userId}/skills`, { skill_ids: selectedSkills });
+      // Save HR employment info (department/designation/title/bank/joining date) —
+      // non-fatal on failure, same pattern as the skills call above.
+      if (userId) {
+        try { await employmentApi.saveProfile({ user_id: userId, ...employment }); }
+        catch { /* non-fatal */ }
+      }
       toast.success(isEdit ? 'User updated' : 'User created');
       onSaved(); onClose();
     } catch (err: any) {
@@ -265,6 +289,32 @@ function UserForm({ user, allSkills, isSuperAdmin: superAdmin, onSaved, onClose 
           )}
         </div>
         {!isEdit && <FInput label="Password" required type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Temporary password (min 8 chars)" />}
+      </FSection>
+      <FSection title="HR / Payroll Information">
+        <div className="grid grid-cols-2 gap-3">
+          <FSelect label="Department" value={String(employment.department_id ?? '')} onChange={e => setEmp('department_id', e.target.value)}>
+            <option value="">{masters.loading ? 'Loading…' : 'Select department'}</option>
+            {masters.departments.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+          </FSelect>
+          <FSelect label="Designation" value={String(employment.designation_id ?? '')} onChange={e => setEmp('designation_id', e.target.value)}>
+            <option value="">{masters.loading ? 'Loading…' : 'Select designation'}</option>
+            {masters.designations.map(d => <option key={d.designation_id} value={String(d.designation_id)}>{d.designation_name}</option>)}
+          </FSelect>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FSelect label="Title" value={String(employment.title_id ?? '')} onChange={e => setEmp('title_id', e.target.value)}>
+            <option value="">{masters.loading ? 'Loading…' : 'Select title'}</option>
+            {masters.titles.map(t => <option key={t.title_id} value={String(t.title_id)}>{t.title_name}</option>)}
+          </FSelect>
+          <FInput label="Joining Date" type="date" value={String(employment.joining_date ?? '')} onChange={e => setEmp('joining_date', e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FSelect label="Bank" value={String(employment.bank_id ?? '')} onChange={e => setEmp('bank_id', e.target.value)}>
+            <option value="">{masters.loading ? 'Loading…' : 'Select bank'}</option>
+            {masters.banks.map(b => <option key={b.bank_id} value={String(b.bank_id)}>{b.bank_name}</option>)}
+          </FSelect>
+          <FInput label="Bank Account Number" value={String(employment.bank_acc ?? '')} onChange={e => setEmp('bank_acc', e.target.value)} placeholder="Account number" />
+        </div>
       </FSection>
       {allSkills.length > 0 && (
         <FSection title={`Skills (${selectedSkills.length} selected)`}>
