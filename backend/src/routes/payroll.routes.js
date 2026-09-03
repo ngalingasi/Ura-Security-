@@ -21,4 +21,18 @@ Router.post('/generate-payroll', hrAuth(), PayrollCtrl.generatePayroll);
 Router.get('/generated-payrolls', hrAuth(), PayrollCtrl.getGeneratedPayrolls);
 Router.post('/generate-payroll-sheet', hrAuth(), PayrollCtrl.getGeneratedPayrollsSheet);
 
+// Payroll components (allowances & deductions catalog)
+Router.get('/components', hrAuth(), PayrollCtrl.getPayrollComponents);
+Router.post('/components', hrAuth(), PayrollCtrl.postPayrollComponent);
+Router.put('/components/:componentId', hrAuth(), PayrollCtrl.putPayrollComponent);
+Router.post('/components/:componentId/deactivate', hrAuth(), PayrollCtrl.deactivateComponent);
+
+// Per-person component assignment (dual-reference: ?person_type=user|guard&person_id=N)
+Router.get('/employee-components', hrAuth(), PayrollCtrl.getEmployeePayrollComponents);
+Router.post('/employee-components', hrAuth(), PayrollCtrl.postEmployeePayrollComponent);
+Router.delete('/employee-components/:componentId', hrAuth(), PayrollCtrl.deleteEmployeePayrollComponent);
+
+// Line items for a specific generated payroll (itemized slip breakdown)
+Router.get('/line-items/:payrollId', hrAuth(), PayrollCtrl.getPayrollLineItems);
+
 module.exports = Router;

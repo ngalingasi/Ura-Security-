@@ -22,6 +22,10 @@
 const DB = require("../config/hrDb");
 const moment = require('moment');
 
+const dbQuery = (sql, params = []) => new Promise((resolve, reject) => {
+  DB.query(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
+});
+
 const fetchSalaryScales = ({}) => {
     return new Promise((resolve,reject)=>{
         let sql = "SELECT * FROM hr_salary_scales";
@@ -95,11 +99,16 @@ const createSalaryScale = (scaleData) => {
 const fetchEmployeeSalaryScales = ({}) => {
   return new Promise((resolve,reject)=>{
       const sql = `
-        SELECT 'user' AS person_type, u.user_id AS person_id, u.full_name, u.email, u.mobile AS phone,
-               ep.pf_number, ep.joining_date,
-               ss.scale_name, ss.scale_amount,
+        SELECT 'user' AS person_type, u.user_id AS person_id,
+               u.full_name COLLATE utf8mb4_general_ci AS full_name,
+               u.email COLLATE utf8mb4_general_ci AS email,
+               u.mobile COLLATE utf8mb4_general_ci AS phone,
+               ep.pf_number COLLATE utf8mb4_general_ci AS pf_number, ep.joining_date,
+               ss.scale_name COLLATE utf8mb4_general_ci AS scale_name, ss.scale_amount,
                sa.id AS salary_assignment_id, sa.salary_amount AS assigned_amount,
-               dp.name AS department_name, ds.designation_name, t.title_name
+               dp.name COLLATE utf8mb4_general_ci AS department_name,
+               ds.designation_name COLLATE utf8mb4_general_ci AS designation_name,
+               t.title_name COLLATE utf8mb4_general_ci AS title_name
         FROM users AS u
         LEFT JOIN hr_salary_assignments AS sa ON sa.user_id = u.user_id
         LEFT JOIN hr_salary_scales      AS ss ON ss.salary_scale_id = sa.salary_scale_id
@@ -111,11 +120,16 @@ const fetchEmployeeSalaryScales = ({}) => {
 
         UNION ALL
 
-        SELECT 'guard' AS person_type, g.guard_id AS person_id, g.full_name, g.email, g.phone,
-               ep.pf_number, ep.joining_date,
-               ss.scale_name, ss.scale_amount,
+        SELECT 'guard' AS person_type, g.guard_id AS person_id,
+               g.full_name COLLATE utf8mb4_general_ci AS full_name,
+               g.email COLLATE utf8mb4_general_ci AS email,
+               g.phone COLLATE utf8mb4_general_ci AS phone,
+               ep.pf_number COLLATE utf8mb4_general_ci AS pf_number, ep.joining_date,
+               ss.scale_name COLLATE utf8mb4_general_ci AS scale_name, ss.scale_amount,
                sa.id AS salary_assignment_id, sa.salary_amount AS assigned_amount,
-               dp.name AS department_name, ds.designation_name, t.title_name
+               dp.name COLLATE utf8mb4_general_ci AS department_name,
+               ds.designation_name COLLATE utf8mb4_general_ci AS designation_name,
+               t.title_name COLLATE utf8mb4_general_ci AS title_name
         FROM security_guards AS g
         LEFT JOIN hr_salary_assignments AS sa ON sa.guard_id = g.guard_id
         LEFT JOIN hr_salary_scales      AS ss ON ss.salary_scale_id = sa.salary_scale_id
@@ -143,11 +157,16 @@ const fetchEmployeeSalaryScales = ({}) => {
 const fetchEmployeeSalaryList = ({}) => {
   return new Promise((resolve,reject)=>{
       const sql = `
-        SELECT 'user' AS person_type, u.user_id AS person_id, u.full_name, u.email, u.mobile AS phone,
-               ep.pf_number, ep.joining_date,
-               ss.scale_name, ss.scale_amount,
+        SELECT 'user' AS person_type, u.user_id AS person_id,
+               u.full_name COLLATE utf8mb4_general_ci AS full_name,
+               u.email COLLATE utf8mb4_general_ci AS email,
+               u.mobile COLLATE utf8mb4_general_ci AS phone,
+               ep.pf_number COLLATE utf8mb4_general_ci AS pf_number, ep.joining_date,
+               ss.scale_name COLLATE utf8mb4_general_ci AS scale_name, ss.scale_amount,
                sa.id AS salary_assignment_id, sa.salary_amount AS assigned_amount,
-               dp.name AS department_name, ds.designation_name, t.title_name
+               dp.name COLLATE utf8mb4_general_ci AS department_name,
+               ds.designation_name COLLATE utf8mb4_general_ci AS designation_name,
+               t.title_name COLLATE utf8mb4_general_ci AS title_name
         FROM users AS u
         INNER JOIN hr_salary_assignments AS sa ON sa.user_id = u.user_id
         INNER JOIN hr_salary_scales      AS ss ON ss.salary_scale_id = sa.salary_scale_id
@@ -158,11 +177,16 @@ const fetchEmployeeSalaryList = ({}) => {
 
         UNION ALL
 
-        SELECT 'guard' AS person_type, g.guard_id AS person_id, g.full_name, g.email, g.phone,
-               ep.pf_number, ep.joining_date,
-               ss.scale_name, ss.scale_amount,
+        SELECT 'guard' AS person_type, g.guard_id AS person_id,
+               g.full_name COLLATE utf8mb4_general_ci AS full_name,
+               g.email COLLATE utf8mb4_general_ci AS email,
+               g.phone COLLATE utf8mb4_general_ci AS phone,
+               ep.pf_number COLLATE utf8mb4_general_ci AS pf_number, ep.joining_date,
+               ss.scale_name COLLATE utf8mb4_general_ci AS scale_name, ss.scale_amount,
                sa.id AS salary_assignment_id, sa.salary_amount AS assigned_amount,
-               dp.name AS department_name, ds.designation_name, t.title_name
+               dp.name COLLATE utf8mb4_general_ci AS department_name,
+               ds.designation_name COLLATE utf8mb4_general_ci AS designation_name,
+               t.title_name COLLATE utf8mb4_general_ci AS title_name
         FROM security_guards AS g
         INNER JOIN hr_salary_assignments AS sa ON sa.guard_id = g.guard_id
         INNER JOIN hr_salary_scales      AS ss ON ss.salary_scale_id = sa.salary_scale_id
@@ -364,50 +388,163 @@ const generatePayrollForCurrentMonth = (employees,createdby) => {
     const currentMonth = moment().format('YYYY-MM');
 
     const payrollPromises = employees.map((employee) => {
-      return new Promise((resolve, reject) => {
-        const baseSalary = parseFloat(employee.salary_amount);
-        const deductions = 0;
-        const netSalary = baseSalary - deductions;
-
+      return (async () => {
+        const baseSalary = parseFloat(employee.salary_amount) || 0;
         const userCol  = employee.person_type === 'user'  ? employee.person_id : null;
         const guardCol = employee.person_type === 'guard' ? employee.person_id : null;
 
-        const checkPayrollQuery = `SELECT * FROM hr_payroll WHERE user_id ${userCol ? '= ?' : 'IS NULL'} AND guard_id ${guardCol ? '= ?' : 'IS NULL'} AND salary_month = ?`;
+        const checkPayrollQuery = `SELECT id FROM hr_payroll WHERE user_id ${userCol ? '= ?' : 'IS NULL'} AND guard_id ${guardCol ? '= ?' : 'IS NULL'} AND salary_month = ?`;
         const checkParams = [userCol, guardCol].filter((v) => v !== null).concat([`${currentMonth}-01`]);
+        const existing = await dbQuery(checkPayrollQuery, checkParams);
+        if (existing.length > 0) {
+          return `Payroll already exists for ${employee.full_name} for month ${currentMonth}`;
+        }
 
-        DB.query(checkPayrollQuery, checkParams, (err, result) => {
-          if (err) {
-            return reject(`Error checking payroll: ${err}`);
-          }
+        // Individually-assigned components for this specific person (user
+        // OR guard — never inherited from the salary scale). Same
+        // dual-reference lookup pattern used everywhere else in this file.
+        const componentsQuery = `
+          SELECT epc.value, pc.id AS component_id, pc.name, pc.type, pc.calc_method
+          FROM hr_employee_payroll_components epc
+          JOIN hr_payroll_components pc ON pc.id = epc.component_id
+          WHERE epc.status = 'active' AND pc.status = 'active'
+            AND epc.${userCol ? 'user_id = ?' : guardCol ? 'guard_id = ?' : 'user_id IS NULL AND epc.guard_id IS NULL'}
+        `;
+        const componentParams = userCol ? [userCol] : guardCol ? [guardCol] : [];
+        const components = await dbQuery(componentsQuery, componentParams);
 
-          if (result.length === 0) {
-            const insertPayrollQuery = `INSERT INTO hr_payroll (user_id, guard_id, salary_month, gross_salary, deductions, net_salary, created_by)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?)`;
-            DB.query(insertPayrollQuery, [
-              userCol,
-              guardCol,
-              `${currentMonth}-01`,
-              baseSalary,
-              deductions,
-              netSalary,
-              createdby
-            ], (err) => {
-              if (err) {
-                return reject(err);
-              }
-              return resolve(`Payroll generated for ${employee.full_name} for month ${currentMonth}`);
-            });
-          } else {
-            return resolve(`Payroll already exists for ${employee.full_name} for month ${currentMonth}`);
-          }
-        });
-      });
+        const lineItems = [{
+          component_id: null, name: 'Basic Salary', type: 'earning',
+          calc_method: 'fixed', rate_value: baseSalary, amount: baseSalary,
+        }];
+
+        for (const c of components) {
+          const rate = parseFloat(c.value) || 0;
+          const amount = c.calc_method === 'percent_of_basic'
+            ? parseFloat((baseSalary * (rate / 100)).toFixed(2))
+            : rate;
+          lineItems.push({
+            component_id: c.component_id, name: c.name, type: c.type,
+            calc_method: c.calc_method, rate_value: rate, amount,
+          });
+        }
+
+        const earningsTotal   = lineItems.filter(l => l.type === 'earning').reduce((s, l) => s + l.amount, 0);
+        const deductionsTotal = lineItems.filter(l => l.type === 'deduction').reduce((s, l) => s + l.amount, 0);
+        const grossSalary = parseFloat(earningsTotal.toFixed(2));
+        const deductions  = parseFloat(deductionsTotal.toFixed(2));
+        const netSalary   = parseFloat((grossSalary - deductions).toFixed(2));
+
+        const insertPayrollQuery = `INSERT INTO hr_payroll (user_id, guard_id, salary_month, gross_salary, deductions, net_salary, created_by)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        const result = await dbQuery(insertPayrollQuery, [
+          userCol, guardCol, `${currentMonth}-01`, grossSalary, deductions, netSalary, createdby
+        ]);
+        const payrollId = result.insertId;
+
+        for (const [idx, l] of lineItems.entries()) {
+          await dbQuery(
+            `INSERT INTO hr_payroll_line_items (payroll_id, component_id, name, type, calc_method, rate_value, amount, sort_order)
+             VALUES (?,?,?,?,?,?,?,?)`,
+            [payrollId, l.component_id, l.name, l.type, l.calc_method, l.rate_value, l.amount, idx]
+          );
+        }
+
+        return `Payroll generated for ${employee.full_name} for month ${currentMonth}`;
+      })();
     });
 
     Promise.all(payrollPromises)
       .then((results) => resolve(results))
       .catch((error) => reject(error));
   });
+};
+
+// ─── Payroll components (allowances & deductions catalog) ───────────────────
+
+const fetchPayrollComponents = ({ type, status } = {}) => {
+  let sql = 'SELECT * FROM hr_payroll_components WHERE 1=1';
+  const params = [];
+  if (type)   { sql += ' AND type = ?';   params.push(type); }
+  if (status) { sql += ' AND status = ?'; params.push(status); }
+  sql += ' ORDER BY type, name';
+  return dbQuery(sql, params);
+};
+
+const createPayrollComponent = async ({ name, type, calc_method, default_value, created_by }) => {
+  if (!name)  { const e = new Error('Component name is required'); e.statusCode = 400; throw e; }
+  if (!['earning','deduction'].includes(type)) { const e = new Error('Type must be earning or deduction'); e.statusCode = 400; throw e; }
+  const r = await dbQuery(
+    `INSERT INTO hr_payroll_components (name, type, calc_method, default_value, created_by) VALUES (?,?,?,?,?)`,
+    [name, type, calc_method || 'fixed', parseFloat(default_value) || 0, created_by || null]
+  );
+  const rows = await dbQuery('SELECT * FROM hr_payroll_components WHERE id = ?', [r.insertId]);
+  return rows[0];
+};
+
+const updatePayrollComponent = async (id, body) => {
+  const allowed = ['name', 'type', 'calc_method', 'default_value', 'status'];
+  const fields = []; const params = [];
+  for (const k of allowed) {
+    if (body[k] !== undefined) { fields.push(`${k} = ?`); params.push(body[k]); }
+  }
+  if (fields.length) {
+    params.push(id);
+    await dbQuery(`UPDATE hr_payroll_components SET ${fields.join(', ')} WHERE id = ?`, params);
+  }
+  const rows = await dbQuery('SELECT * FROM hr_payroll_components WHERE id = ?', [id]);
+  return rows[0];
+};
+
+const deactivatePayrollComponent = async (id) => {
+  await dbQuery(`UPDATE hr_payroll_components SET status = 'inactive' WHERE id = ?`, [id]);
+  return { id, status: 'inactive' };
+};
+
+// ─── Per-person component assignment (dual-reference, individual) ──────────
+
+const fetchEmployeePayrollComponents = ({ person_type, person_id }) => {
+  const col = person_type === 'guard' ? 'guard_id' : 'user_id';
+  return dbQuery(
+    `SELECT epc.id, epc.user_id, epc.guard_id, epc.component_id, epc.value, epc.status,
+            pc.name, pc.type, pc.calc_method, pc.default_value
+     FROM hr_employee_payroll_components epc
+     JOIN hr_payroll_components pc ON pc.id = epc.component_id
+     WHERE epc.${col} = ?
+     ORDER BY pc.type, pc.name`,
+    [person_id]
+  );
+};
+
+const assignEmployeePayrollComponent = async ({ person_type, person_id, component_id, value, status, assigned_by }) => {
+  if (!person_type || !person_id || !component_id) { const e = new Error('person_type, person_id and component_id are required'); e.statusCode = 400; throw e; }
+  const userCol  = person_type === 'user'  ? person_id : null;
+  const guardCol = person_type === 'guard' ? person_id : null;
+  await dbQuery(
+    `INSERT INTO hr_employee_payroll_components (user_id, guard_id, component_id, value, status, assigned_by)
+     VALUES (?,?,?,?,?,?)
+     ON DUPLICATE KEY UPDATE value = VALUES(value), status = VALUES(status), assigned_by = VALUES(assigned_by)`,
+    [userCol, guardCol, component_id, parseFloat(value) || 0, status || 'active', assigned_by || null]
+  );
+  return fetchEmployeePayrollComponents({ person_type, person_id });
+};
+
+const removeEmployeePayrollComponent = async ({ person_type, person_id, component_id }) => {
+  const col = person_type === 'guard' ? 'guard_id' : 'user_id';
+  await dbQuery(
+    `UPDATE hr_employee_payroll_components SET status = 'inactive' WHERE ${col} = ? AND component_id = ?`,
+    [person_id, component_id]
+  );
+  return fetchEmployeePayrollComponents({ person_type, person_id });
+};
+
+// ─── Payroll line items (frozen snapshot, for the itemized slip) ───────────
+
+const fetchPayrollLineItems = (payroll_id) => {
+  return dbQuery(
+    `SELECT * FROM hr_payroll_line_items WHERE payroll_id = ? ORDER BY sort_order, id`,
+    [payroll_id]
+  );
 };
 
 const fetchGeneratedPayrolls = ({ salary_month, department_id, bank_id }) => {
@@ -422,20 +559,22 @@ const fetchGeneratedPayrolls = ({ salary_month, department_id, bank_id }) => {
       const sql = `
         SELECT
           '${personType}' AS person_type,
-          pt.${idCol} AS person_id, pt.full_name,
-          ep.pf_number,
+          pt.${idCol} AS person_id,
+          pt.full_name COLLATE utf8mb4_general_ci AS full_name,
+          ep.pf_number COLLATE utf8mb4_general_ci AS pf_number,
           p.id AS payroll_id,
-          p.salary_month,
+          DATE_FORMAT(p.salary_month, '%Y-%m-%d') AS salary_month,
           p.gross_salary,
           p.deductions,
           p.net_salary,
-          dp.name AS department_name,
-          ds.designation_name,
-          t.title_name,
-          ss.scale_name,
+          dp.name COLLATE utf8mb4_general_ci AS department_name,
+          ds.designation_name COLLATE utf8mb4_general_ci AS designation_name,
+          t.title_name COLLATE utf8mb4_general_ci AS title_name,
+          ss.scale_name COLLATE utf8mb4_general_ci AS scale_name,
           ss.scale_amount,
           sa.salary_amount,
-          b.bank_name
+          b.bank_name COLLATE utf8mb4_general_ci AS bank_name,
+          ep.bank_acc COLLATE utf8mb4_general_ci AS bank_acc
         FROM hr_payroll p
         INNER JOIN ${personTable} pt ON p.${idCol} = pt.${idCol}
         LEFT JOIN hr_employment_profiles ep ON ep.${idCol} = pt.${idCol}
@@ -495,5 +634,13 @@ module.exports={
     generatePayrollForCurrentMonth,
     fetchGeneratedPayrolls,
     hardDeleteEmployeeSalary,
-    updateSalaryDetails
+    updateSalaryDetails,
+    fetchPayrollComponents,
+    createPayrollComponent,
+    updatePayrollComponent,
+    deactivatePayrollComponent,
+    fetchEmployeePayrollComponents,
+    assignEmployeePayrollComponent,
+    removeEmployeePayrollComponent,
+    fetchPayrollLineItems,
 }

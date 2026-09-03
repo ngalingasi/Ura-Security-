@@ -17,13 +17,13 @@
  *   GET      /payroll/generated-payrolls
  *   POST     /payroll/generate-payroll-sheet        { payload }  → blob download
  */
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import client from '../../../api/client';
 import { getCdnImageUrl } from '../../hr/api/hrFiles';
 import PageShell from '../../hr/components/ui/PageShell';
 import { useImagePreview } from '../../hr/context/ImagePreviewContext';
 
-type Tab = 'scales' | 'assign' | 'list' | 'slips' | 'report';
+type Tab = 'scales' | 'assign' | 'components' | 'list' | 'slips' | 'report';
 
 const fmtCur = (v?: number | string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'TSH' }).format(Number(v ?? 0));
@@ -212,6 +212,109 @@ function SalaryScalesTab() {
 // ══════════════════════════════════════════════════════════════════════════════
 // TAB 2 — ASSIGN SALARY SCALE
 // ══════════════════════════════════════════════════════════════════════════════
+function ComponentRow({ c, rows, toggle, setVal }: { c:any; rows:Record<number,{checked:boolean; value:string}>; toggle:(id:number)=>void; setVal:(id:number, value:string)=>void }) {
+  return (
+    <div className="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+      <input type="checkbox" checked={rows[c.id]?.checked||false} onChange={()=>toggle(c.id)} className="rounded flex-shrink-0"/>
+      <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{c.name}</span>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <input type="number" step="0.01" disabled={!rows[c.id]?.checked} value={rows[c.id]?.value||''} onChange={e=>setVal(c.id, e.target.value)}
+          className="w-28 h-8 px-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-white disabled:opacity-40 focus:outline-none focus:border-brand-400"/>
+        <span className="text-xs text-gray-400 w-10">{c.calc_method==='percent_of_basic'?'%':'TSH'}</span>
+      </div>
+    </div>
+  );
+}
+
+function EmployeeComponentsModal({ employee, onClose, onSuccess }:{ employee:any; onClose:()=>void; onSuccess:()=>void }) {
+  const [catalog, setCatalog]   = useState<any[]>([]);
+  const [assigned, setAssigned] = useState<any[]>([]);
+  const [rows, setRows] = useState<Record<number,{checked:boolean; value:string}>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [cRes, aRes] = await Promise.all([
+          client.get('/v1/hr/payroll/components', { params: { status: 'active' } }),
+          client.get('/v1/hr/payroll/employee-components', { params: { person_type: employee.person_type, person_id: employee.person_id } }),
+        ]);
+        const cat = cRes.data?.data ?? [];
+        const asg = aRes.data?.data ?? [];
+        setCatalog(cat);
+        setAssigned(asg);
+        const initial: Record<number,{checked:boolean; value:string}> = {};
+        for (const c of cat) {
+          const existing = asg.find((a:any) => a.component_id === c.id && a.status === 'active');
+          initial[c.id] = { checked: !!existing, value: String(existing ? existing.value : c.default_value) };
+        }
+        setRows(initial);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    })();
+  }, [employee.person_type, employee.person_id]);
+
+  const toggle = (id:number) => setRows(r => ({ ...r, [id]: { ...r[id], checked: !r[id].checked } }));
+  const setVal = (id:number, value:string) => setRows(r => ({ ...r, [id]: { ...r[id], value } }));
+
+  const save = async () => {
+    setSaving(true); setErr('');
+    try {
+      for (const c of catalog) {
+        const row = rows[c.id];
+        const wasAssigned = assigned.some((a:any) => a.component_id === c.id && a.status === 'active');
+        if (row.checked) {
+          await client.post('/v1/hr/payroll/employee-components', { person_type: employee.person_type, person_id: employee.person_id, component_id: c.id, value: row.value, status: 'active' });
+        } else if (wasAssigned) {
+          await client.delete(`/v1/hr/payroll/employee-components/${c.id}`, { params: { person_type: employee.person_type, person_id: employee.person_id } });
+        }
+      }
+      onSuccess(); onClose();
+    } catch (ex:any) { setErr(ex?.response?.data?.message || 'Failed to save'); }
+    finally { setSaving(false); }
+  };
+
+  const earnings   = catalog.filter(c => c.type === 'earning');
+  const deductions = catalog.filter(c => c.type === 'deduction');
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+        <EmpAvatar emp={employee}/>
+        <div><p className="font-bold text-gray-800 dark:text-white">{fullName(employee)}</p><p className="text-xs text-gray-400">{employee.person_type==='guard'?'Security Guard':'Staff'} · Basic: {employee.assigned_amount?fmtCur(employee.assigned_amount):'—'}</p></div>
+      </div>
+      {err && <div className="p-3 rounded-xl bg-red-50 text-xs text-red-600 border border-red-200">{err}</div>}
+      {loading ? (
+        <div className="flex items-center justify-center py-10 gap-2 text-gray-400"><Spin/>Loading…</div>
+      ) : catalog.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-6">No components defined yet — add some on the Allowances &amp; Deductions tab first.</p>
+      ) : (
+        <div className="max-h-96 overflow-y-auto space-y-4">
+          {earnings.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Earnings</p>
+              {earnings.map(c => <ComponentRow key={c.id} c={c} rows={rows} toggle={toggle} setVal={setVal}/>)}
+            </div>
+          )}
+          {deductions.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Deductions</p>
+              {deductions.map(c => <ComponentRow key={c.id} c={c} rows={rows} toggle={toggle} setVal={setVal}/>)}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex gap-3 pt-2">
+        <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+        <button type="button" onClick={save} disabled={saving||loading} className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white transition-colors flex items-center justify-center gap-2">{saving&&<Spin size="sm"/>}{saving?'Saving…':'Save'}</button>
+      </div>
+    </div>
+  );
+}
+
 function AssignScaleModal({ employee, scales, onSubmitted, onClose }:{ employee:any; scales:any[]; onSubmitted:()=>void; onClose:()=>void }) {
   const [scaleId, setScaleId] = useState('');
   const [saving,  setSaving]  = useState(false);
@@ -256,6 +359,7 @@ function AssignSalaryTab() {
   const [scales,    setScales]  = useState<any[]>([]);
   const [loading,   setLoading] = useState(true);
   const [modal,     setModal]   = useState(false);
+  const [compModal, setCompModal] = useState(false);
   const [selected,  setSelected]= useState<any>(null);
   const [search,    setSearch]  = useState('');
   const [toast,     setToast]   = useState({ msg:'', type:'success' as 'success'|'error' });
@@ -295,7 +399,10 @@ function AssignSalaryTab() {
               <td className="px-4 py-3 text-gray-500">{u.department_name||'—'}</td>
               <td className="px-4 py-3 text-xs text-gray-400">{u.joining_date?fmtDate(u.joining_date):'—'}</td>
               <td className="px-4 py-3">
-                <RowMenu items={[{ label:'Assign Salary Scale', onClick:()=>{setSelected(u);setModal(true);} }]}/>
+                <RowMenu items={[
+                  { label:'Assign Salary Scale', onClick:()=>{setSelected(u);setModal(true);} },
+                  { label:'Manage Allowances & Deductions', onClick:()=>{setSelected(u);setCompModal(true);} },
+                ]}/>
               </td>
             </tr>
           ))}
@@ -304,6 +411,9 @@ function AssignSalaryTab() {
     </div>
     <Modal open={modal} onClose={()=>setModal(false)} title="Assign Salary Scale">
       {modal&&selected&&<AssignScaleModal employee={selected} scales={scales} onSubmitted={()=>{load();show('Scale assigned');}} onClose={()=>setModal(false)}/>}
+    </Modal>
+    <Modal open={compModal} onClose={()=>setCompModal(false)} title="Allowances & Deductions" size="lg">
+      {compModal&&selected&&<EmployeeComponentsModal employee={selected} onSuccess={()=>show('Components updated')} onClose={()=>setCompModal(false)}/>}
     </Modal>
   </>);
 }
@@ -331,6 +441,145 @@ function EditSalaryModal({ employee, onSubmitted, onClose }:{ employee:any; onSu
       </F>
       <div className="flex gap-3 pt-2"><button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button><button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white transition-colors flex items-center justify-center gap-2">{saving&&<Spin size="sm"/>}{saving?'Saving…':'Update Amount'}</button></div>
     </form>
+  );
+}
+
+// ── Allowances & Deductions catalog ──────────────────────────────────────────
+function ComponentFormModal({ editItem, onClose, onSuccess }:{ editItem?:any; onClose:()=>void; onSuccess:()=>void }) {
+  const isEdit = !!editItem?.id;
+  const [name, setName] = useState(editItem?.name || '');
+  const [type, setType] = useState<'earning'|'deduction'>(editItem?.type || 'earning');
+  const [calcMethod, setCalcMethod] = useState<'fixed'|'percent_of_basic'>(editItem?.calc_method || 'fixed');
+  const [defaultValue, setDefaultValue] = useState(String(editItem?.default_value ?? ''));
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) { setErr('Name is required'); return; }
+    setSaving(true); setErr('');
+    try {
+      const payload = { name, type, calc_method: calcMethod, default_value: defaultValue };
+      const r = isEdit
+        ? await client.put(`/v1/hr/payroll/components/${editItem.id}`, payload)
+        : await client.post('/v1/hr/payroll/components', payload);
+      if (r.data?.status) { onSuccess(); onClose(); } else setErr(r.data?.message || 'Failed');
+    } catch (ex: any) { setErr(ex?.response?.data?.message || 'Error'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      {err && <div className="p-3 rounded-xl bg-red-50 text-xs text-red-600 border border-red-200">{err}</div>}
+      <F label="Component Name" required>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. House Rent Allowance" className={inCls}/>
+      </F>
+      <F label="Type" required>
+        <select value={type} onChange={e=>setType(e.target.value as any)} className={selCls} disabled={isEdit}>
+          <option value="earning">Earning (adds to Gross Salary)</option>
+          <option value="deduction">Deduction (subtracts from Net Pay)</option>
+        </select>
+      </F>
+      <F label="Calculation Method" required>
+        <select value={calcMethod} onChange={e=>setCalcMethod(e.target.value as any)} className={selCls}>
+          <option value="fixed">Fixed amount (TSH)</option>
+          <option value="percent_of_basic">Percentage of Basic Salary</option>
+        </select>
+      </F>
+      <F label={calcMethod==='percent_of_basic' ? 'Default Rate (%)' : 'Default Amount (TSH)'} required>
+        <input type="number" step="0.01" value={defaultValue} onChange={e=>setDefaultValue(e.target.value)} className={inCls}/>
+      </F>
+      <p className="text-xs text-gray-400">This is just the catalog default — each person's actual value is set individually when assigning it to them, on the Assign Salary tab.</p>
+      <div className="flex gap-3 pt-2">
+        <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+        <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white transition-colors flex items-center justify-center gap-2">{saving&&<Spin size="sm"/>}{saving?'Saving…':isEdit?'Update Component':'Create Component'}</button>
+      </div>
+    </form>
+  );
+}
+
+function PayrollComponentsTab() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [toast, setToast] = useState({ msg:'', type:'success' as 'success'|'error' });
+  const show = (msg:string, type:'success'|'error'='success') => { setToast({msg,type}); setTimeout(()=>setToast({msg:'',type:'success'}),3000); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await client.get('/v1/hr/payroll/components'); setItems(r.data?.data ?? []); }
+    catch { setItems([]); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const deactivate = async (item: any) => {
+    if (!confirm(`Deactivate "${item.name}"? People currently assigned it will stop accruing it in future payroll runs.`)) return;
+    try { await client.post(`/v1/hr/payroll/components/${item.id}/deactivate`); show('Component deactivated'); load(); }
+    catch (ex: any) { show(ex?.response?.data?.message || 'Failed to deactivate', 'error'); }
+  };
+
+  const earnings   = items.filter(i => i.type === 'earning');
+  const deductions = items.filter(i => i.type === 'deduction');
+
+  const Section = ({ title, rows }: { title:string; rows:any[] }) => (
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</p>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 dark:bg-gray-800/40">
+          <tr>{['Name','Method','Default','Status',''].map(h=>(
+            <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
+          ))}</tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
+          {rows.length === 0 ? (
+            <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">None yet.</td></tr>
+          ) : rows.map(item => (
+            <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+              <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-white">{item.name}</td>
+              <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{item.calc_method==='percent_of_basic'?'% of Basic':'Fixed'}</td>
+              <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{item.calc_method==='percent_of_basic'?`${item.default_value}%`:fmtCur(item.default_value)}</td>
+              <td className="px-4 py-2.5">
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize ${item.status==='active'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}`}>{item.status}</span>
+              </td>
+              <td className="px-4 py-2.5">
+                <div className="flex gap-1.5">
+                  <button onClick={()=>{setEditItem(item);setModalOpen(true);}} className="h-7 px-2.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Edit</button>
+                  {item.status!=='inactive' && <button onClick={()=>deactivate(item)} className="h-7 px-2.5 rounded-lg text-xs font-medium border border-red-200 text-red-500 hover:bg-red-50">Deactivate</button>}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <Toast msg={toast.msg} type={toast.type}/>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Define the allowances and deductions available to assign to people. Each person's actual value is set individually on the Assign Salary tab.</p>
+        <button onClick={()=>{setEditItem(null);setModalOpen(true);}} className="h-9 px-4 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Component
+        </button>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-16 gap-2 text-gray-400"><Spin/>Loading…</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Section title="Earnings (Allowances)" rows={earnings}/>
+          <Section title="Deductions" rows={deductions}/>
+        </div>
+      )}
+      <Modal open={modalOpen} onClose={()=>{setModalOpen(false);setEditItem(null);}} title={editItem?`Edit — ${editItem.name}`:'New Component'} size="md">
+        {modalOpen && <ComponentFormModal editItem={editItem} onClose={()=>{setModalOpen(false);setEditItem(null);}} onSuccess={()=>{load();show(editItem?'Component updated':'Component created');}}/>}
+      </Modal>
+    </div>
   );
 }
 
@@ -428,78 +677,167 @@ function PayrollListTab() {
 // ══════════════════════════════════════════════════════════════════════════════
 // TAB 4 — SALARY SLIPS
 // ══════════════════════════════════════════════════════════════════════════════
+function printSlip(payroll: any, items: any[]) {
+  const earnings   = items.filter(i => i.type === 'earning');
+  const deductions = items.filter(i => i.type === 'deduction');
+  const grossSalary = earnings.reduce((s, i) => s + Number(i.amount), 0);
+  const totalDeductions = deductions.reduce((s, i) => s + Number(i.amount), 0);
+  const netPay = grossSalary - totalDeductions; // Net Pay = Gross Salary − Total Deductions
+
+  const rows = (arr: any[]) => arr.map(i => `
+    <tr><td>${i.name}</td><td style="text-align:right">${fmtCur(i.amount)}</td></tr>`).join('');
+
+  const maxRows = Math.max(earnings.length, deductions.length, 1);
+  const earnPad = Array.from({ length: maxRows - earnings.length }).map(() => '<tr><td>&nbsp;</td><td></td></tr>').join('');
+  const dedPad  = Array.from({ length: maxRows - deductions.length }).map(() => '<tr><td>&nbsp;</td><td></td></tr>').join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Salary Slip - ${fullName(payroll)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;color:#111;background:#fff;position:relative}
+    .watermark{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;z-index:-1;opacity:0.07;pointer-events:none}
+    .watermark img{width:65%;max-width:420px}
+    .sheet{border:2px dashed #999;margin:14px}
+    .hdr{padding:10px 16px;border-bottom:1px dashed #999;display:flex;align-items:center;justify-content:center;gap:14px}
+    .hdr img{width:52px;height:52px;object-fit:contain;flex-shrink:0}
+    .hdr .hdr-text{text-align:center}
+    .hdr h1{font-size:15pt;font-weight:900}
+    .hdr h2{font-size:12pt;font-weight:700;margin-top:2px}
+    .info{padding:14px 20px;display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;border-bottom:1px dashed #999;font-size:10pt}
+    .info div{display:flex;justify-content:space-between}
+    .info span:first-child{color:#555}
+    .cols{display:grid;grid-template-columns:1fr 1fr}
+    .col{padding:0}
+    .col + .col{border-left:1px dashed #999}
+    .colhead{text-align:center;font-weight:900;font-size:11pt;padding:8px;border-bottom:1px dashed #999}
+    table{width:100%;border-collapse:collapse}
+    td{padding:6px 16px;font-size:10pt}
+    .totrow td{font-weight:900;border-top:1px dashed #999}
+    .netpay{display:grid;grid-template-columns:1fr 1fr;border-top:1px dashed #999}
+    .netpay > div{text-align:center;font-weight:900;font-size:12pt;padding:10px}
+    .netpay > div:first-child{border-right:1px dashed #999}
+    @page{size:A4;margin:10mm}
+  </style></head><body>
+  <div class="watermark"><img src="${window.location.origin}/images/logo/logo.png" /></div>
+  <div class="sheet">
+    <div class="hdr">
+      <img src="${window.location.origin}/images/logo/logo-icon.svg" />
+      <div class="hdr-text">
+        <h1>URA Security System</h1>
+        <h2>Salary Slip for ${fmtMonth(payroll.salary_month)}</h2>
+      </div>
+    </div>
+    <div class="info">
+      <div><span>Name</span><span><strong>${fullName(payroll)}</strong></span></div>
+      <div><span>Department</span><span>${payroll.department_name || '—'}</span></div>
+      <div><span>PF Number</span><span>${payroll.pf_number || '—'}</span></div>
+      <div><span>Bank</span><span>${payroll.bank_name || '—'}</span></div>
+      <div><span>Designation</span><span>${payroll.designation_name || '—'}</span></div>
+      <div><span>A/c No.</span><span>${payroll.bank_acc || '—'}</span></div>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="colhead">Earnings</div>
+        <table><tbody>${rows(earnings)}${earnPad}
+          <tr class="totrow"><td>Gross Salary</td><td style="text-align:right">${fmtCur(grossSalary)}</td></tr>
+        </tbody></table>
+      </div>
+      <div class="col">
+        <div class="colhead">Deductions</div>
+        <table><tbody>${rows(deductions)}${dedPad}
+          <tr class="totrow"><td>Total Deductions</td><td style="text-align:right">${fmtCur(totalDeductions)}</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="netpay"><div>Net Pay</div><div>${fmtCur(netPay)}</div></div>
+  </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  w.onload = () => { w.focus(); w.print(); };
+}
+
 function SlipModal({ payroll, onClose }:{ payroll:any; onClose:()=>void }) {
-  const printRef = useRef<HTMLDivElement>(null);
-  const handlePrint=()=>{
-    const c=printRef.current?.innerHTML;
-    if(!c) return;
-    const w=window.open('','_blank');
-    if(!w) return;
-    w.document.write(`<html><head><title>Salary Slip</title><style>body{font-family:Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}th,td{padding:6px 10px;border:1px solid #dee2e6}th{text-align:left;background:#f8f9fa}</style></head><body>${c}</body></html>`);
-    w.document.close(); w.print();
-  };
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    client.get(`/v1/hr/payroll/line-items/${payroll.payroll_id}`).then(r => setItems(r.data?.data ?? [])).finally(() => setLoading(false));
+  }, [payroll.payroll_id]);
+
+  const earnings   = items.filter(i => i.type === 'earning');
+  const deductions = items.filter(i => i.type === 'deduction');
+  const grossSalary = earnings.reduce((s, i) => s + Number(i.amount), 0);
+  const totalDeductions = deductions.reduce((s, i) => s + Number(i.amount), 0);
+  const netPay = grossSalary - totalDeductions; // Net Pay = Gross Salary − Total Deductions
+
   return (
     <div className="space-y-4">
-      <div ref={printRef} className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
-        <div className="bg-brand-600 text-white text-center py-4 px-6">
-          <p className="text-sm font-bold uppercase tracking-wide">Tanzania Police Force Corporation Sole (TPFCS)</p>
-          <p className="text-xs mt-1 opacity-80">Staff Salary Slip</p>
-        </div>
-        <div className="p-5">
-          <table className="w-full text-sm border-collapse mb-4">
-            <tbody>
-              <tr className="border-b border-gray-100 dark:border-gray-800">
-                <th className="py-2 pr-4 text-left text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">For the Month of</th>
-                <td className="py-2 text-right font-semibold text-gray-800 dark:text-white uppercase">{fmtMonth(payroll.salary_month)}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div className="flex items-center gap-4 mb-5 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-            <EmpAvatar emp={payroll}/>
-            <div>
-              <p className="font-bold text-gray-800 dark:text-white">{fullName(payroll)}</p>
-              <p className="text-xs text-gray-400">PF: {payroll.pf_number||'—'} · {payroll.department_name||'—'}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Information</p>
-              <table className="w-full text-xs border-collapse">
-                <tbody>
-                  {[['Employer Name', fullName(payroll)],['Employer No',payroll.pf_number||'—'],['Department',payroll.department_name||'—']].map(([k,v])=>(
-                    <tr key={k} className="border-b border-gray-100 dark:border-gray-800">
-                      <th className="py-1.5 pr-3 text-left font-semibold text-gray-500 dark:text-gray-400">{k}:</th>
-                      <td className="py-1.5 text-right text-gray-800 dark:text-white">{v}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Payments</p>
-              <table className="w-full text-xs border-collapse">
-                <tbody>
-                  <tr className="border-b border-gray-100 dark:border-gray-800">
-                    <th className="py-1.5 pr-3 text-left font-semibold text-gray-500 dark:text-gray-400">Basic Salary:</th>
-                    <td className="py-1.5 text-right font-semibold text-green-600 dark:text-green-400">{fmtCur(payroll.gross_salary)}</td>
-                  </tr>
-                  <tr className="border-b border-gray-100 dark:border-gray-800">
-                    <th className="py-1.5 pr-3 text-left font-semibold text-gray-500 dark:text-gray-400">Total:</th>
-                    <td className="py-1.5 text-right font-bold text-gray-800 dark:text-white">{fmtCur(payroll.gross_salary)}</td>
-                  </tr>
-                  <tr>
-                    <th className="py-1.5 pr-3 text-left font-bold text-brand-600 dark:text-brand-400">Net Salary:</th>
-                    <td className="py-1.5 text-right font-bold text-brand-600 dark:text-brand-400 text-sm">{fmtCur(payroll.net_salary)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+      {/* "Paper" preview — mirrors the actual print output exactly */}
+      <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-900">
+        <div className="flex items-center justify-center gap-3 py-3 px-5 border-b border-dashed border-gray-300 dark:border-gray-600">
+          <img src="/images/logo/logo-icon.svg" alt="URA" className="w-11 h-11 object-contain flex-shrink-0"/>
+          <div className="text-center">
+            <p className="text-sm font-black uppercase tracking-wide text-gray-900 dark:text-white">URA Security System</p>
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mt-0.5">Salary Slip for {fmtMonth(payroll.salary_month)}</p>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 px-5 py-3 text-xs border-b border-dashed border-gray-300 dark:border-gray-600">
+          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Name</span><span className="font-bold text-gray-800 dark:text-white">{fullName(payroll)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Department</span><span className="text-gray-800 dark:text-white">{payroll.department_name||'—'}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">PF Number</span><span className="text-gray-800 dark:text-white">{payroll.pf_number||'—'}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Bank</span><span className="text-gray-800 dark:text-white">{payroll.bank_name||'—'}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Designation</span><span className="text-gray-800 dark:text-white">{payroll.designation_name||'—'}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">A/c No.</span><span className="text-gray-800 dark:text-white">{payroll.bank_acc||'—'}</span></div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-10 gap-2 text-gray-400"><Spin/>Loading…</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2">
+              <div className="border-r border-dashed border-gray-300 dark:border-gray-600">
+                <p className="text-center text-xs font-black py-2 border-b border-dashed border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white">Earnings</p>
+                <table className="w-full text-xs">
+                  <tbody>
+                    {earnings.map(i => (
+                      <tr key={i.id}><td className="py-1.5 px-4 text-gray-600 dark:text-gray-300">{i.name}</td><td className="py-1.5 px-4 text-right text-gray-800 dark:text-white">{fmtCur(i.amount)}</td></tr>
+                    ))}
+                    <tr className="border-t border-dashed border-gray-300 dark:border-gray-600"><td className="py-1.5 px-4 font-black text-gray-900 dark:text-white">Gross Salary</td><td className="py-1.5 px-4 text-right font-black text-gray-900 dark:text-white">{fmtCur(grossSalary)}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <p className="text-center text-xs font-black py-2 border-b border-dashed border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white">Deductions</p>
+                <table className="w-full text-xs">
+                  <tbody>
+                    {deductions.map(i => (
+                      <tr key={i.id}><td className="py-1.5 px-4 text-gray-600 dark:text-gray-300">{i.name}</td><td className="py-1.5 px-4 text-right text-gray-800 dark:text-white">{fmtCur(i.amount)}</td></tr>
+                    ))}
+                    <tr className="border-t border-dashed border-gray-300 dark:border-gray-600"><td className="py-1.5 px-4 font-black text-gray-900 dark:text-white">Total Deductions</td><td className="py-1.5 px-4 text-right font-black text-gray-900 dark:text-white">{fmtCur(totalDeductions)}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 border-t border-dashed border-gray-300 dark:border-gray-600">
+              <div className="text-center py-2.5 border-r border-dashed border-gray-300 dark:border-gray-600">
+                <p className="font-black text-sm text-gray-900 dark:text-white">Net Pay</p>
+              </div>
+              <div className="text-center py-2.5">
+                <p className="font-black text-sm text-gray-900 dark:text-white">{fmtCur(netPay)}</p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
       <div className="flex gap-3">
         <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 hover:bg-gray-50 transition-colors">Close</button>
-        <button onClick={handlePrint} className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-brand-500 hover:bg-brand-600 text-white transition-colors flex items-center justify-center gap-2">
+        <button onClick={()=>printSlip(payroll, items)} disabled={loading} className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white transition-colors flex items-center justify-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           Print Slip
         </button>
@@ -680,6 +1018,7 @@ function PayslipReportTab() {
 const TAB_META: { id:Tab; label:string; icon:string }[] = [
   { id:'scales', label:'Salary Scales',       icon:'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z' },
   { id:'assign', label:'Assign Salary Scale', icon:'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' },
+  { id:'components', label:'Allowances & Deductions', icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { id:'list',   label:'Payroll List',         icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
   { id:'slips',  label:'Salary Slips',         icon:'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
   { id:'report', label:'Payslip Report',       icon:'M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
@@ -708,6 +1047,7 @@ export default function PayrollPage({ tab: initTab = 'scales' }: { tab?: Tab }) 
       {/* Content */}
       {tab==='scales' && <SalaryScalesTab/>}
       {tab==='assign' && <AssignSalaryTab/>}
+      {tab==='components' && <PayrollComponentsTab/>}
       {tab==='list'   && <PayrollListTab/>}
       {tab==='slips'  && <SalarySlipsTab/>}
       {tab==='report' && <PayslipReportTab/>}

@@ -7,7 +7,7 @@
  * changed (person_type + person_id instead of a single employee id;
  * salary_assignment_id instead of employee_salary_scale_id).
  */
-const { fetchSalaryScales, createSalaryScale, fetchEmployeeSalaryScales, createEmployeeSalaryScale, fetchEmployeeSalaryList, hardDeleteScale, updateSalaryScaleDetails, generatePayrollForCurrentMonth, fetchGeneratedPayrolls, hardDeleteEmployeeSalary, updateSalaryDetails } = require("../models/payroll.model");
+const { fetchSalaryScales, createSalaryScale, fetchEmployeeSalaryScales, createEmployeeSalaryScale, fetchEmployeeSalaryList, hardDeleteScale, updateSalaryScaleDetails, generatePayrollForCurrentMonth, fetchGeneratedPayrolls, hardDeleteEmployeeSalary, updateSalaryDetails, fetchPayrollComponents, createPayrollComponent, updatePayrollComponent, deactivatePayrollComponent, fetchEmployeePayrollComponents, assignEmployeePayrollComponent, removeEmployeePayrollComponent, fetchPayrollLineItems } = require("../models/payroll.model");
 const ExcelJS = require('exceljs');
 const moment = require('moment');
 
@@ -349,6 +349,42 @@ const deleteEmployeeSalary = async (req, res) => {
     }
 };
 
+const handle = (res, statusOnSuccess, message, promise) => {
+  return promise
+    .then(data => res.status(statusOnSuccess).json({ status: true, message, data }))
+    .catch(error => {
+      const code = error.statusCode || 500;
+      return res.status(code).json({ status: false, message: error.message || 'Something went wrong' });
+    });
+};
+
+// ── Payroll components (allowances & deductions catalog) ───────────────────
+const getPayrollComponents = (req, res) => handle(res, 200, 'Components fetched successfully',
+  fetchPayrollComponents(req.query));
+
+const postPayrollComponent = (req, res) => handle(res, 201, 'Component created successfully',
+  createPayrollComponent({ ...req.body, created_by: req.userid }));
+
+const putPayrollComponent = (req, res) => handle(res, 200, 'Component updated successfully',
+  updatePayrollComponent(req.params.componentId, req.body));
+
+const deactivateComponent = (req, res) => handle(res, 200, 'Component deactivated successfully',
+  deactivatePayrollComponent(req.params.componentId));
+
+// ── Per-person assignment (dual-reference, individual) ──────────────────────
+const getEmployeePayrollComponents = (req, res) => handle(res, 200, 'Person components fetched successfully',
+  fetchEmployeePayrollComponents({ person_type: req.query.person_type, person_id: req.query.person_id }));
+
+const postEmployeePayrollComponent = (req, res) => handle(res, 200, 'Component assigned successfully',
+  assignEmployeePayrollComponent({ ...req.body, assigned_by: req.userid }));
+
+const deleteEmployeePayrollComponent = (req, res) => handle(res, 200, 'Component removed successfully',
+  removeEmployeePayrollComponent({ person_type: req.query.person_type, person_id: req.query.person_id, component_id: req.params.componentId }));
+
+// ── Payroll line items (itemized slip breakdown) ────────────────────────────
+const getPayrollLineItems = (req, res) => handle(res, 200, 'Line items fetched successfully',
+  fetchPayrollLineItems(req.params.payrollId));
+
 module.exports = {
     getSalaryScale,
     postSalaryScale,
@@ -360,5 +396,13 @@ module.exports = {
     getGeneratedPayrolls,
     getGeneratedPayrollsSheet,
     deleteEmployeeSalary,
-    postEditSalary
+    postEditSalary,
+    getPayrollComponents,
+    postPayrollComponent,
+    putPayrollComponent,
+    deactivateComponent,
+    getEmployeePayrollComponents,
+    postEmployeePayrollComponent,
+    deleteEmployeePayrollComponent,
+    getPayrollLineItems,
 }
