@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { FormInput, FormSelect, FormSection, FormActions } from '../../../components/forms/FormField';
 import DatePicker from '../../../components/forms/DatePicker';
 import LineItemsEditor, { fmtMoney } from '../components/LineItemsEditor';
-import { invoicesApi, type LineItem } from '../api/operations.api';
+import { invoicesApi, catalogItemsApi, type LineItem, type CatalogItem } from '../api/operations.api';
 import { clientsApi, type Client } from '../../clients/api/clients.api';
 import { getErrorMessage } from '../../../api/client';
 import { ROUTES } from '../../../routes/routes';
@@ -23,6 +23,7 @@ export default function InvoiceFormPage() {
   const isEdit = !!invoiceId;
 
   const [clients, setClients] = useState<Client[]>([]);
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(isEdit);
   const [locked,  setLocked]  = useState(false);
 
@@ -40,6 +41,7 @@ export default function InvoiceFormPage() {
 
   useEffect(() => {
     clientsApi.list({ status: 'active', limit: 100 }).then(({ data }) => setClients(data.results)).catch(() => {});
+    catalogItemsApi.list({ kind: 'invoice', status: 'active' }).then(({ data }) => setCatalog(data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function InvoiceFormPage() {
       setWhtRate(Number(inv.wht_rate));
       setVatEnabled(!!inv.vat_enabled);
       setVatRate(Number(inv.vat_rate));
-      setItems((inv.items ?? []).map((it) => ({ description: it.description, unit: it.unit, quantity: Number(it.quantity), unit_price: Number(it.unit_price) })));
+      setItems((inv.items ?? []).map((it) => ({ item_id: it.item_id, description: it.description, unit: it.unit, quantity: Number(it.quantity), unit_price: Number(it.unit_price) })));
     }).catch((err) => setError(getErrorMessage(err))).finally(() => setLoading(false));
   }, [isEdit, invoiceId]);
 
@@ -76,7 +78,7 @@ export default function InvoiceFormPage() {
         client_id: Number(clientId), issued_date: issuedDate, due_date: dueDate || null, notes,
         wht_enabled: whtEnabled, wht_rate: whtRate,
         vat_enabled: vatEnabled, vat_rate: vatRate,
-        line_items: validItems.map((i) => ({ description: i.description, unit: i.unit, quantity: i.quantity, unit_price: i.unit_price })),
+        line_items: validItems.map((i) => ({ item_id: i.item_id || null, description: i.description, unit: i.unit, quantity: i.quantity, unit_price: i.unit_price })),
       };
       const { data } = isEdit
         ? await invoicesApi.update(Number(invoiceId), payload)
@@ -91,7 +93,7 @@ export default function InvoiceFormPage() {
 
   if (locked) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-20">
+      <div className="p-6 max-w-2xl mx-auto text-center py-20">
         <p className="text-gray-500 dark:text-gray-400 mb-4">This invoice is no longer editable — only invoices still in "invoiced" status can be edited.</p>
         <button onClick={() => navigate(-1)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">← Go Back</button>
       </div>
@@ -99,7 +101,7 @@ export default function InvoiceFormPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3 mb-2">
         <button onClick={() => navigate(-1)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-1.5">
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -127,7 +129,7 @@ export default function InvoiceFormPage() {
 
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
           <FormSection title="Line Items">
-            <LineItemsEditor items={items} onChange={setItems} />
+            <LineItemsEditor items={items} onChange={setItems} catalog={catalog} />
           </FormSection>
         </div>
 

@@ -41,6 +41,7 @@ const prepareLines = (line_items) => line_items.map((l, idx) => {
   const qty = parseFloat(l.quantity) || 0;
   const price = parseFloat(l.unit_price) || 0;
   return {
+    item_id: l.item_id || null,
     description: l.description || '',
     unit: l.unit || 'unit',
     quantity: qty,
@@ -124,9 +125,9 @@ const create = async (body, creatorId) => {
     const id = result.insertId;
     for (const line of preparedLines) {
       await connQuery(conn,
-        `INSERT INTO op_invoice_line_items (invoice_id, description, unit, quantity, unit_price, line_total, sort_order)
-         VALUES (?,?,?,?,?,?,?)`,
-        [id, line.description, line.unit, line.quantity, line.unit_price, line.line_total, line.sort_order]
+        `INSERT INTO op_invoice_line_items (invoice_id, item_id, description, unit, quantity, unit_price, line_total, sort_order)
+         VALUES (?,?,?,?,?,?,?,?)`,
+        [id, line.item_id, line.description, line.unit, line.quantity, line.unit_price, line.line_total, line.sort_order]
       );
     }
     return id;
@@ -151,9 +152,9 @@ const update = async (id, body, updatorId) => {
       lines = prepareLines(body.line_items);
       for (const line of lines) {
         await connQuery(conn,
-          `INSERT INTO op_invoice_line_items (invoice_id, description, unit, quantity, unit_price, line_total, sort_order)
-           VALUES (?,?,?,?,?,?,?)`,
-          [id, line.description, line.unit, line.quantity, line.unit_price, line.line_total, line.sort_order]
+          `INSERT INTO op_invoice_line_items (invoice_id, item_id, description, unit, quantity, unit_price, line_total, sort_order)
+           VALUES (?,?,?,?,?,?,?,?)`,
+          [id, line.item_id, line.description, line.unit, line.quantity, line.unit_price, line.line_total, line.sort_order]
         );
       }
     }

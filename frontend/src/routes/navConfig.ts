@@ -20,6 +20,7 @@ export const SidebarIcons = {
   Invoice:   `<path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>`,
   Expense:   `<path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h1m4 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H10a2 2 0 00-2 2v6a2 2 0 002 2z"/>`,
   Payment:   `<path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>`,
+  Catalog:   `<path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7"/>`,
 };
 
 // ── Nav item types ────────────────────────────────────────────────────────────
@@ -96,6 +97,7 @@ export const NAV_CONFIG: NavItem[] = [
       { label: 'Invoices',        to: ROUTES.INVOICES,        iconPath: SidebarIcons.Invoice },
       { label: 'Expenses',        to: ROUTES.EXPENSES,        iconPath: SidebarIcons.Expense },
       { label: 'Payment Records', to: ROUTES.PAYMENT_RECORDS, iconPath: SidebarIcons.Payment },
+      { label: 'Catalog Items',   to: ROUTES.CATALOG_ITEMS,   iconPath: SidebarIcons.Catalog },
     ],
   },
 

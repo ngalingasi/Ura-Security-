@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { FormInput, FormSelect, FormSection, FormActions } from '../../../components/forms/FormField';
 import DatePicker from '../../../components/forms/DatePicker';
 import LineItemsEditor from '../components/LineItemsEditor';
-import { expensesApi, type LineItem } from '../api/operations.api';
+import { expensesApi, catalogItemsApi, type LineItem, type CatalogItem } from '../api/operations.api';
 import { clientsApi, type Client } from '../../clients/api/clients.api';
 import { getErrorMessage } from '../../../api/client';
 import { ROUTES } from '../../../routes/routes';
@@ -23,6 +23,7 @@ export default function ExpenseFormPage() {
   const isEdit = !!expenseId;
 
   const [clients, setClients] = useState<Client[]>([]);
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(isEdit);
 
   const [clientId, setClientId] = useState('');
@@ -34,6 +35,7 @@ export default function ExpenseFormPage() {
 
   useEffect(() => {
     clientsApi.list({ status: 'active', limit: 100 }).then(({ data }) => setClients(data.results)).catch(() => {});
+    catalogItemsApi.list({ kind: 'expense', status: 'active' }).then(({ data }) => setCatalog(data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function ExpenseFormPage() {
       setClientId(exp.client_id ? String(exp.client_id) : '');
       setDate(exp.expense_date?.slice(0, 10) ?? '');
       setNotes(exp.notes ?? '');
-      setItems((exp.items ?? []).map((it) => ({ description: it.description, unit: it.unit, quantity: Number(it.quantity), unit_price: Number(it.unit_price) })));
+      setItems((exp.items ?? []).map((it) => ({ item_id: it.item_id, description: it.description, unit: it.unit, quantity: Number(it.quantity), unit_price: Number(it.unit_price) })));
     }).catch((err) => setError(getErrorMessage(err))).finally(() => setLoading(false));
   }, [isEdit, expenseId]);
 
@@ -56,7 +58,7 @@ export default function ExpenseFormPage() {
     try {
       const payload = {
         client_id: clientId ? Number(clientId) : null, expense_date: date, notes,
-        line_items: validItems.map((i) => ({ description: i.description, unit: i.unit, quantity: i.quantity, unit_price: i.unit_price })),
+        line_items: validItems.map((i) => ({ item_id: i.item_id || null, description: i.description, unit: i.unit, quantity: i.quantity, unit_price: i.unit_price })),
       };
       const { data } = isEdit
         ? await expensesApi.update(Number(expenseId), payload)
@@ -70,7 +72,7 @@ export default function ExpenseFormPage() {
   if (loading) return <div className="p-6 text-center text-gray-400">Loading…</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3 mb-2">
         <button onClick={() => navigate(-1)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-1.5">
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -96,7 +98,7 @@ export default function ExpenseFormPage() {
 
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
           <FormSection title="Line Items">
-            <LineItemsEditor items={items} onChange={setItems} />
+            <LineItemsEditor items={items} onChange={setItems} catalog={catalog} />
           </FormSection>
         </div>
 

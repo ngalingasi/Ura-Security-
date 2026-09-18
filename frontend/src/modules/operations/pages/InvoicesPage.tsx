@@ -81,7 +81,7 @@ export default function InvoicesPage() {
   ];
 
   return (
-    <div>
+    <div className="p-6">
       <PageHeader title="Invoices" description={`${total} invoice${total !== 1 ? 's' : ''}`}
         action={
           <div className="flex items-center gap-2">

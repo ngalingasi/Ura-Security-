@@ -24,6 +24,7 @@ const ExpensesPage       = lazy(() => import('./modules/operations/pages/Expense
 const ExpenseFormPage    = lazy(() => import('./modules/operations/pages/ExpenseFormPage'));
 const ExpenseDetailPage  = lazy(() => import('./modules/operations/pages/ExpenseDetailPage'));
 const PaymentRecordsPage = lazy(() => import('./modules/operations/pages/PaymentRecordsPage'));
+const CatalogItemsPage   = lazy(() => import('./modules/operations/pages/CatalogItemsPage'));
 const PostSitesPage    = lazy(() => import('./modules/post-sites/pages/PostSitesPage'));
 const SecurityGuardsPage = lazy(() => import('./modules/security-guards/pages/SecurityGuardsPage'));
 const AssignPostSitePage = lazy(() => import('./modules/assignments/pages/AssignPostSitePage'));
@@ -121,6 +122,9 @@ export default function App() {
                 } />
                 <Route path={ROUTES.PAYMENT_RECORDS} element={
                   <Suspense fallback={<PageLoader />}><PaymentRecordsPage /></Suspense>
+                } />
+                <Route path={ROUTES.CATALOG_ITEMS} element={
+                  <Suspense fallback={<PageLoader />}><CatalogItemsPage /></Suspense>
                 } />
 
                 {/* Security Team */}

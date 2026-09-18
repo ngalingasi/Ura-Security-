@@ -1,6 +1,7 @@
-import type { LineItem } from '../api/operations.api';
+import type { LineItem, CatalogItem } from '../api/operations.api';
 
 const inCls = 'w-full rounded-lg border px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-white border-gray-300 dark:border-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10';
+const selCls = inCls;
 
 export function fmtMoney(v: number | string | null | undefined): string {
   const n = Number(v) || 0;
@@ -8,12 +9,13 @@ export function fmtMoney(v: number | string | null | undefined): string {
 }
 
 export default function LineItemsEditor({
-  items, onChange,
+  items, onChange, catalog = [],
 }: {
   items: LineItem[];
   onChange: (rows: LineItem[]) => void;
+  catalog?: CatalogItem[];
 }) {
-  const addRow = () => onChange([...items, { description: '', unit: 'unit', quantity: 1, unit_price: 0 }]);
+  const addRow = () => onChange([...items, { item_id: null, description: '', unit: 'unit', quantity: 1, unit_price: 0 }]);
   const removeRow = (idx: number) => onChange(items.filter((_, i) => i !== idx));
   const setRow = (idx: number, patch: Partial<LineItem>) =>
     onChange(items.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -26,7 +28,7 @@ export default function LineItemsEditor({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-800/60">
             <tr>
-              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Description</th>
+              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Item / Description</th>
               <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 w-20">Qty</th>
               <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 w-28">Unit Price</th>
               <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 w-28">Subtotal</th>
@@ -38,15 +40,33 @@ export default function LineItemsEditor({
               <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400 text-xs">No items added yet.</td></tr>
             ) : items.map((row, idx) => (
               <tr key={idx}>
-                <td className="px-3 py-2">
-                  <input value={row.description} onChange={e => setRow(idx, { description: e.target.value })}
+                <td className="px-3 py-2 space-y-1.5">
+                  {catalog.length > 0 && (
+                    <select
+                      value={row.item_id ?? ''}
+                      onChange={(e) => {
+                        const c = catalog.find((c) => String(c.item_id) === e.target.value);
+                        setRow(idx, {
+                          item_id: e.target.value ? Number(e.target.value) : null,
+                          description: c ? c.name : row.description,
+                          unit: c?.unit ?? row.unit,
+                          unit_price: c ? c.default_rate : row.unit_price,
+                        });
+                      }}
+                      className={selCls}
+                    >
+                      <option value="">Free text…</option>
+                      {catalog.map((c) => <option key={c.item_id} value={c.item_id}>{c.name}</option>)}
+                    </select>
+                  )}
+                  <input value={row.description} onChange={(e) => setRow(idx, { description: e.target.value })}
                     placeholder="Description" className={inCls} />
                 </td>
                 <td className="px-3 py-2">
-                  <input type="number" min="0" value={row.quantity} onChange={e => setRow(idx, { quantity: Number(e.target.value) })} className={inCls} />
+                  <input type="number" min="0" value={row.quantity} onChange={(e) => setRow(idx, { quantity: Number(e.target.value) })} className={inCls} />
                 </td>
                 <td className="px-3 py-2">
-                  <input type="number" min="0" step="0.01" value={row.unit_price} onChange={e => setRow(idx, { unit_price: Number(e.target.value) })} className={inCls} />
+                  <input type="number" min="0" step="0.01" value={row.unit_price} onChange={(e) => setRow(idx, { unit_price: Number(e.target.value) })} className={inCls} />
                 </td>
                 <td className="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                   {fmtMoney((Number(row.quantity) || 0) * (Number(row.unit_price) || 0))}

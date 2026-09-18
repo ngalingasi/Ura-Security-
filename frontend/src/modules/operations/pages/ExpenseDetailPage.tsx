@@ -33,7 +33,7 @@ export default function ExpenseDetailPage() {
 
   if (loading) return <div className="p-6 text-center text-gray-400">Loading…</div>;
   if (!exp) return (
-    <div className="max-w-2xl mx-auto text-center py-20">
+    <div className="p-6 max-w-2xl mx-auto text-center py-20">
       <ErrorBanner msg={error} />
       <p className="text-gray-500 dark:text-gray-400 mb-4">Expense not found.</p>
       <button onClick={() => navigate(-1)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">← Go Back</button>
@@ -41,7 +41,7 @@ export default function ExpenseDetailPage() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-1.5">

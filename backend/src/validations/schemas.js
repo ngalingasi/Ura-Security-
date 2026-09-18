@@ -248,6 +248,7 @@ Object.assign(module.exports, {
 
 // ── Line items (shared shape for invoices/expenses) ─────────────────────────
 const lineItem = Joi.object().keys({
+  item_id:     Joi.number().integer().optional().allow(null),
   description: Joi.string().required(),
   unit:        Joi.string().optional().allow('', null),
   quantity:    Joi.number().min(0.01).required(),
@@ -317,9 +318,34 @@ const updateExpense = {
   }).min(1),
 };
 
+// ── Catalog items ─────────────────────────────────────────────────────────────
+const createCatalogItem = {
+  body: Joi.object().keys({
+    name:         Joi.string().required(),
+    description:  Joi.string().optional().allow('', null),
+    default_rate: Joi.number().min(0).optional(),
+    unit:         Joi.string().optional().allow('', null),
+    kind:         Joi.string().valid('invoice', 'expense').optional(),
+    status:       Joi.string().valid('active', 'inactive').optional(),
+  }),
+};
+
+const updateCatalogItem = {
+  params: Joi.object().keys({ itemId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    name:         Joi.string().optional(),
+    description:  Joi.string().optional().allow('', null),
+    default_rate: Joi.number().min(0).optional(),
+    unit:         Joi.string().optional().allow('', null),
+    kind:         Joi.string().valid('invoice', 'expense').optional(),
+    status:       Joi.string().valid('active', 'inactive').optional(),
+  }).min(1),
+};
+
 // Append operations schemas
 Object.assign(module.exports, {
   createInvoice, updateInvoice, cancelInvoice, recordPayment,
   createExpense, updateExpense,
+  createCatalogItem, updateCatalogItem,
 });
 

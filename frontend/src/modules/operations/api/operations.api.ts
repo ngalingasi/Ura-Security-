@@ -2,11 +2,23 @@ import api, { type PaginatedResult } from '../../../api/client';
 
 export interface LineItem {
   line_id?:     number;
+  item_id?:     number | null;
   description:  string;
   unit:         string;
   quantity:     number;
   unit_price:   number;
   line_total?:  number;
+}
+
+export interface CatalogItem {
+  item_id:      number;
+  name:         string;
+  description:  string | null;
+  default_rate: number;
+  unit:         string;
+  kind:         'invoice' | 'expense';
+  status:       'active' | 'inactive';
+  created_at:   string;
 }
 
 export interface Invoice {
@@ -93,4 +105,13 @@ export const expensesApi = {
 
 export const paymentsApi = {
   list: (params?: PaymentFilters) => api.get<PaymentRecord[]>('/v1/payments', { params }),
+};
+
+export interface CatalogItemFilters { kind?: 'invoice' | 'expense'; status?: string; }
+
+export const catalogItemsApi = {
+  list:       (params?: CatalogItemFilters)          => api.get<CatalogItem[]>('/v1/catalog-items', { params }),
+  create:     (body: Partial<CatalogItem>)           => api.post<CatalogItem>('/v1/catalog-items', body),
+  update:     (id: number, body: Partial<CatalogItem>) => api.patch<CatalogItem>(`/v1/catalog-items/${id}`, body),
+  deactivate: (id: number)                           => api.delete(`/v1/catalog-items/${id}`),
 };

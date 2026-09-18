@@ -47,6 +47,7 @@ export const ROUTES = {
   EXPENSE_DETAIL:   '/expenses/:expenseId',
   EXPENSE_EDIT:     '/expenses/:expenseId/edit',
   PAYMENT_RECORDS:  '/payment-records',
+  CATALOG_ITEMS:    '/catalog-items',
 } as const;
 
 export type AppRoute = typeof ROUTES[keyof typeof ROUTES];

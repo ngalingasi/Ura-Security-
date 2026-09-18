@@ -67,7 +67,7 @@ export default function ExpensesPage() {
   ];
 
   return (
-    <div>
+    <div className="p-6">
       <PageHeader title="Expenses" description={`${total} expense${total !== 1 ? 's' : ''}`}
         action={
           <button onClick={() => navigate(ROUTES.EXPENSE_NEW)}

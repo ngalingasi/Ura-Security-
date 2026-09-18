@@ -44,7 +44,7 @@ export default function PaymentRecordsPage() {
   ];
 
   return (
-    <div>
+    <div className="p-6">
       <PageHeader title="Payment Records" description={`${payments.length} payment${payments.length !== 1 ? 's' : ''} recorded`} />
       <ErrorBanner msg={error} />
 
