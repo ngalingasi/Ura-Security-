@@ -245,3 +245,81 @@ Object.assign(module.exports, {
   createGuard, updateGuard,
   createAssignment, endAssignment,
 });
+
+// ── Line items (shared shape for invoices/expenses) ─────────────────────────
+const lineItem = Joi.object().keys({
+  description: Joi.string().required(),
+  unit:        Joi.string().optional().allow('', null),
+  quantity:    Joi.number().min(0.01).required(),
+  unit_price:  Joi.number().min(0).required(),
+});
+
+// ── Invoices ──────────────────────────────────────────────────────────────────
+const createInvoice = {
+  body: Joi.object().keys({
+    client_id:   Joi.number().integer().required(),
+    issued_date: Joi.string().required(),
+    due_date:    Joi.string().optional().allow('', null),
+    notes:       Joi.string().optional().allow('', null),
+    wht_enabled: Joi.boolean().optional(),
+    wht_rate:    Joi.number().min(0).max(100).optional(),
+    vat_enabled: Joi.boolean().optional(),
+    vat_rate:    Joi.number().min(0).max(100).optional(),
+    line_items:  Joi.array().items(lineItem).min(1).required(),
+  }),
+};
+
+const updateInvoice = {
+  params: Joi.object().keys({ invoiceId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    due_date:    Joi.string().optional().allow('', null),
+    notes:       Joi.string().optional().allow('', null),
+    wht_enabled: Joi.boolean().optional(),
+    wht_rate:    Joi.number().min(0).max(100).optional(),
+    vat_enabled: Joi.boolean().optional(),
+    vat_rate:    Joi.number().min(0).max(100).optional(),
+    line_items:  Joi.array().items(lineItem).min(1).optional(),
+  }).min(1),
+};
+
+const cancelInvoice = {
+  params: Joi.object().keys({ invoiceId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    reason: Joi.string().optional().allow('', null),
+  }),
+};
+
+const recordPayment = {
+  params: Joi.object().keys({ invoiceId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    amount: Joi.number().min(0).optional(),
+    notes:  Joi.string().optional().allow('', null),
+  }),
+};
+
+// ── Expenses ──────────────────────────────────────────────────────────────────
+const createExpense = {
+  body: Joi.object().keys({
+    client_id:     Joi.number().integer().optional().allow(null),
+    expense_date:  Joi.string().required(),
+    notes:         Joi.string().optional().allow('', null),
+    line_items:    Joi.array().items(lineItem).min(1).required(),
+  }),
+};
+
+const updateExpense = {
+  params: Joi.object().keys({ expenseId: Joi.number().integer().required() }),
+  body: Joi.object().keys({
+    client_id:     Joi.number().integer().optional().allow(null),
+    expense_date:  Joi.string().optional(),
+    notes:         Joi.string().optional().allow('', null),
+    line_items:    Joi.array().items(lineItem).min(1).optional(),
+  }).min(1),
+};
+
+// Append operations schemas
+Object.assign(module.exports, {
+  createInvoice, updateInvoice, cancelInvoice, recordPayment,
+  createExpense, updateExpense,
+});
+

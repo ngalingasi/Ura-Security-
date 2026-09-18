@@ -52,6 +52,11 @@ const handleGuardDocUpload = makeMiddleware(
   makeStorage('guards/docs'), ALLOWED_DOCS, 10, 'attachment'
 );
 
+// Invoice payment evidence — bank slip / receipt (images + PDF, 10 MB)
+const handlePaymentEvidenceUpload = makeMiddleware(
+  makeStorage('payments'), ALLOWED_DOCS, 10, 'evidence'
+);
+
 const deleteFile = (urlPath) => {
   if (!urlPath) return;
   try {
@@ -60,4 +65,4 @@ const deleteFile = (urlPath) => {
   } catch { /* silent */ }
 };
 
-module.exports = { handleGuardPhotoUpload, handleGuardDocUpload, deleteFile };
+module.exports = { handleGuardPhotoUpload, handleGuardDocUpload, handlePaymentEvidenceUpload, deleteFile };

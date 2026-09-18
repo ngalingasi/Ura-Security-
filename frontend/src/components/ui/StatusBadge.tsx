@@ -8,6 +8,11 @@ const STYLES: Record<string, string> = {
   high:     'bg-red-100   text-red-700   dark:bg-red-500/20   dark:text-red-400',
   medium:   'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
   low:      'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
+  // Invoice statuses
+  invoiced:  'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
+  approved:  'bg-blue-100   text-blue-700   dark:bg-blue-500/20   dark:text-blue-400',
+  paid:      'bg-green-100  text-green-700  dark:bg-green-500/20  dark:text-green-400',
+  cancelled: 'bg-red-100    text-red-700    dark:bg-red-500/20    dark:text-red-400',
 };
 
 interface StatusBadgeProps {

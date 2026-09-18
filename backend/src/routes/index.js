@@ -9,6 +9,9 @@ const assignmentRoutes = require('./assignment.routes');
 const erp = require("./erp.route");
 const hrRoutes      = require('./hr.routes');
 const payrollRoutes = require('./payroll.routes');
+const invoiceRoutes = require('./invoice.routes');
+const expenseRoutes = require('./expense.routes');
+const paymentRoutes = require('./payment.routes');
 
 router.use('/v1/auth',             authRoutes);
 router.use('/v1/users',            userRoutes);
@@ -19,6 +22,9 @@ router.use('/v1/assignments',      assignmentRoutes);
 router.use("/v1/erp", erp);
 router.use('/v1/hr',               hrRoutes);
 router.use('/v1/hr/payroll',       payrollRoutes);
+router.use('/v1/invoices',         invoiceRoutes);
+router.use('/v1/expenses',         expenseRoutes);
+router.use('/v1/payments',         paymentRoutes);
 
 router.get('/', (req, res) => res.json({
   name:    'Ura Security API',

@@ -17,6 +17,13 @@ const DashboardHome    = lazy(() => import('./layouts/DashboardHome'));
 const ProfilePage      = lazy(() => import('./users/pages/ProfilePage'));
 const UsersPage        = lazy(() => import('./users/pages/UsersPage'));
 const ClientsPage      = lazy(() => import('./modules/clients/pages/ClientsPage'));
+const InvoicesPage       = lazy(() => import('./modules/operations/pages/InvoicesPage'));
+const InvoiceFormPage    = lazy(() => import('./modules/operations/pages/InvoiceFormPage'));
+const InvoiceDetailPage  = lazy(() => import('./modules/operations/pages/InvoiceDetailPage'));
+const ExpensesPage       = lazy(() => import('./modules/operations/pages/ExpensesPage'));
+const ExpenseFormPage    = lazy(() => import('./modules/operations/pages/ExpenseFormPage'));
+const ExpenseDetailPage  = lazy(() => import('./modules/operations/pages/ExpenseDetailPage'));
+const PaymentRecordsPage = lazy(() => import('./modules/operations/pages/PaymentRecordsPage'));
 const PostSitesPage    = lazy(() => import('./modules/post-sites/pages/PostSitesPage'));
 const SecurityGuardsPage = lazy(() => import('./modules/security-guards/pages/SecurityGuardsPage'));
 const AssignPostSitePage = lazy(() => import('./modules/assignments/pages/AssignPostSitePage'));
@@ -85,6 +92,35 @@ export default function App() {
                 } />
                 <Route path={ROUTES.POST_SITES} element={
                   <Suspense fallback={<PageLoader />}><PostSitesPage /></Suspense>
+                } />
+
+                {/* Billing — Invoices, Expenses, Payments */}
+                <Route path={ROUTES.INVOICES} element={
+                  <Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>
+                } />
+                <Route path={ROUTES.INVOICE_NEW} element={
+                  <Suspense fallback={<PageLoader />}><InvoiceFormPage /></Suspense>
+                } />
+                <Route path={ROUTES.INVOICE_EDIT} element={
+                  <Suspense fallback={<PageLoader />}><InvoiceFormPage /></Suspense>
+                } />
+                <Route path={ROUTES.INVOICE_DETAIL} element={
+                  <Suspense fallback={<PageLoader />}><InvoiceDetailPage /></Suspense>
+                } />
+                <Route path={ROUTES.EXPENSES} element={
+                  <Suspense fallback={<PageLoader />}><ExpensesPage /></Suspense>
+                } />
+                <Route path={ROUTES.EXPENSE_NEW} element={
+                  <Suspense fallback={<PageLoader />}><ExpenseFormPage /></Suspense>
+                } />
+                <Route path={ROUTES.EXPENSE_EDIT} element={
+                  <Suspense fallback={<PageLoader />}><ExpenseFormPage /></Suspense>
+                } />
+                <Route path={ROUTES.EXPENSE_DETAIL} element={
+                  <Suspense fallback={<PageLoader />}><ExpenseDetailPage /></Suspense>
+                } />
+                <Route path={ROUTES.PAYMENT_RECORDS} element={
+                  <Suspense fallback={<PageLoader />}><PaymentRecordsPage /></Suspense>
                 } />
 
                 {/* Security Team */}

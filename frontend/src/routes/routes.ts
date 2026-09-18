@@ -36,6 +36,17 @@ export const ROUTES = {
   PAYROLL_LIST:        '/payroll/salary-list',
   PAYROLL_SLIPS:       '/payroll/slips',
   PAYROLL_REPORT:      '/payroll/report',
+
+  // Operations — Invoices, Expenses, Payments
+  INVOICES:         '/invoices',
+  INVOICE_NEW:      '/invoices/new',
+  INVOICE_DETAIL:   '/invoices/:invoiceId',
+  INVOICE_EDIT:     '/invoices/:invoiceId/edit',
+  EXPENSES:         '/expenses',
+  EXPENSE_NEW:      '/expenses/new',
+  EXPENSE_DETAIL:   '/expenses/:expenseId',
+  EXPENSE_EDIT:     '/expenses/:expenseId/edit',
+  PAYMENT_RECORDS:  '/payment-records',
 } as const;
 
 export type AppRoute = typeof ROUTES[keyof typeof ROUTES];
